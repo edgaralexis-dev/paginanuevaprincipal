@@ -1,0 +1,179 @@
+.page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #f5f2ed;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid #2a2a2a;
+  background: rgba(10, 10, 10, 0.96);
+}
+
+.logoImg { height: 24px; width: auto; display: block; }
+.backLink { color: #3dd87a; text-decoration: none; font-size: 13px; }
+
+.main {
+  padding: 22px 16px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.ticketShell {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #264253;
+  background: #052f45;
+}
+
+.ticketTop {
+  padding: 12px;
+}
+
+.ticketBrand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ticketBrand img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.ticketPoster {
+  margin-top: 10px;
+  height: 130px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #d9dce2;
+}
+
+.mediaImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ticketBody { padding: 10px 14px 14px; text-align: center; color: #fff; }
+.title {
+  margin: 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 44px;
+  letter-spacing: 0.04em;
+  line-height: .95;
+}
+.eventName {
+  margin: 0 0 10px;
+  font-size: 26px;
+  font-family: 'Bebas Neue', sans-serif;
+  line-height: .95;
+}
+.dateStrip {
+  border-top: 1px solid rgba(157, 255, 215, 0.35);
+  border-bottom: 1px solid rgba(157, 255, 215, 0.35);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 4px;
+}
+.metaGrid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid rgba(157, 255, 215, 0.35);
+  border-bottom: 1px solid rgba(157, 255, 215, 0.35);
+}
+.metaGrid > div {
+  display: grid;
+  gap: 5px;
+  padding: 10px 8px;
+}
+.metaGrid > div + div {
+  border-left: 1px solid rgba(157, 255, 215, 0.35);
+}
+.metaLabel {
+  font-size: 11px;
+  color: #dfece6;
+}
+.metaValue {
+  font-size: 24px;
+  font-family: 'Bebas Neue', sans-serif;
+  line-height: .9;
+}
+.ticketLegend {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #f3f7f8;
+}
+
+.qrPanel {
+  background: #16181d;
+  border-top: 1px solid #28303f;
+  padding: 14px;
+}
+
+.qrWrap {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #0d0f13;
+  display: flex;
+  justify-content: center;
+}
+
+.qr {
+  width: 250px;
+  height: 250px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #2a2a2a;
+  padding: 10px 0;
+}
+.label { color: #888; font-size: 12px; }
+.value { color: #f5f2ed; font-size: 13px; font-weight: 600; }
+.status {
+  font-size: 11px;
+  color: #3dd87a;
+  background: rgba(61, 216, 122, 0.12);
+  border: 1px solid rgba(61, 216, 122, 0.25);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.qrHint {
+  margin: 8px 0 0;
+  color: #798297;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.error { color: #ff8a6a; margin-top: 10px; font-size: 12px; }
+
+@media (max-width: 520px) {
+  .ticketShell { max-width: 100%; }
+  .title { font-size: 34px; }
+  .eventName { font-size: 22px; }
+  .metaGrid { grid-template-columns: 1fr; }
+  .metaGrid > div + div { border-left: none; border-top: 1px solid rgba(157, 255, 215, 0.25); }
+}

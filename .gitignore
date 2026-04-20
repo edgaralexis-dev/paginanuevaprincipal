@@ -1,0 +1,22 @@
+# Dependencias y build
+node_modules/
+dist/
+
+# Entorno local (no subir secretos)
+.env
+.env.local
+.env.*.local
+
+# Vite
+*.local
+
+# Logs y OS
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

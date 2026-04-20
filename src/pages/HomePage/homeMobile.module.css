@@ -1,0 +1,583 @@
+/* Vista móvil — basada en primetix-mobile.html (limpio / corporativo) */
+
+.mobileRoot {
+  min-height: 100dvh;
+  background: #0a0a0a;
+  color: #f5f2ed;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+.mNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 10px;
+  background: #0a0a0a;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mLogo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.mLogoImg {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
+.mNavActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mNavIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.mNavIconWrap {
+  position: relative;
+}
+
+.mNavDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff4d1a;
+  border: 1.5px solid #0a0a0a;
+}
+
+.mSearch {
+  padding: 8px 20px 12px;
+  background: #0a0a0a;
+}
+
+.mSearchBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.mSearchBar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-weight: 400;
+  color: #f5f2ed;
+  font-family: inherit;
+}
+.mSearchBar input::placeholder {
+  color: #5c5c5c;
+}
+
+.mHero {
+  margin: 0 16px 20px;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 220px;
+  position: relative;
+}
+
+.mHeroBg {
+  position: absolute;
+  inset: 0;
+}
+.mHeroBg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mHeroGrad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 10, 10, 0.95) 0%, rgba(10, 10, 10, 0.35) 50%, transparent 100%),
+    linear-gradient(to right, rgba(10, 10, 10, 0.35) 0%, transparent 55%);
+}
+
+.mHeroDots {
+  position: absolute;
+  bottom: 56px;
+  right: 14px;
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+.mDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.mDotActive {
+  background: #3dd87a;
+  width: 14px;
+  border-radius: 3px;
+}
+
+.mHeroContent {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 14px 16px 16px;
+  z-index: 2;
+}
+
+.mHeroTag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mHeroTagDot {
+  width: 4px;
+  height: 4px;
+  background: #ff4d1a;
+  border-radius: 50%;
+}
+
+.mHeroTitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 0.03em;
+  color: #f5f2ed;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.mHeroMeta {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(245, 242, 237, 0.65);
+  margin-bottom: 10px;
+}
+
+.mHeroFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mHeroPrice {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: #f5f2ed;
+}
+.mHeroPrice span {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+  margin-right: 2px;
+}
+
+.mHeroBtn {
+  background: #3dd87a;
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mSection {
+  padding: 0 20px;
+  margin-bottom: 12px;
+}
+
+.mSectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mSectionTitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: #f5f2ed;
+}
+
+.mSeeAll {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  text-decoration: none;
+}
+
+.mCarousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 20px 8px;
+  scrollbar-width: none;
+}
+.mCarousel::-webkit-scrollbar {
+  display: none;
+}
+
+.mEventCard {
+  flex: 0 0 176px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.mEventPhoto {
+  height: 112px;
+  position: relative;
+  overflow: hidden;
+}
+.mEventPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mEventPhotoOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 10, 10, 0.85), transparent 55%);
+}
+
+.mEventPhotoTag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+
+.tagHot {
+  background: #ff4d1a;
+  color: #f5f2ed;
+}
+.tagNext {
+  background: rgba(61, 216, 122, 0.15);
+  color: #3dd87a;
+  border: 1px solid rgba(61, 216, 122, 0.3);
+}
+
+.mEventPhotoDate {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  z-index: 2;
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(245, 242, 237, 0.65);
+}
+
+.mEventBody {
+  padding: 10px 10px 12px;
+}
+
+.mEventCat {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  margin-bottom: 3px;
+}
+
+.mEventName {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  color: #f5f2ed;
+  line-height: 1.1;
+  margin-bottom: 3px;
+}
+
+.mEventVenue {
+  font-size: 10px;
+  font-weight: 400;
+  color: #888;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mEventFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mEventPrice {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  color: #f5f2ed;
+}
+.mEventPrice span {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  color: #888;
+  font-weight: 400;
+}
+
+.mEventArrow {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(61, 216, 122, 0.12);
+  border: 1px solid rgba(61, 216, 122, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3dd87a;
+}
+
+.mFeatured {
+  padding: 8px 20px 24px;
+}
+
+.mFeaturedCard {
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+}
+
+.mFeaturedPhoto {
+  width: 96px;
+  flex-shrink: 0;
+  position: relative;
+  min-height: 112px;
+}
+.mFeaturedPhoto img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mFeaturedPhotoTitle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(245, 242, 237, 0.1);
+  text-align: center;
+  padding: 6px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.mFeaturedInfo {
+  flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.mFeaturedCat {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  margin-bottom: 4px;
+}
+
+.mFeaturedName {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: #f5f2ed;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.mFeaturedDate {
+  font-size: 11px;
+  font-weight: 400;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.mFeaturedBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mFeaturedPrice {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: #f5f2ed;
+}
+.mFeaturedPrice sup {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  color: #888;
+  font-weight: 400;
+}
+
+.mAvail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mAvailDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3dd87a;
+}
+
+.mAvailTxt {
+  font-size: 10px;
+  color: #888;
+}
+
+.mFooterMini {
+  padding: 20px 24px 8px;
+  border-top: 1px solid #2a2a2a;
+  text-align: center;
+  font-size: 11px;
+  color: #5c5c5c;
+  line-height: 1.5;
+}
+
+.mTabBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 10, 0.96);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  padding: 6px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+}
+
+.mTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0;
+  color: #888;
+  text-decoration: none;
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.mTabActive {
+  color: #3dd87a;
+}
+
+.mTabLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.mTabIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mTabBadge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff4d1a;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.mTabIconWrap {
+  position: relative;
+}
+
+.mPlaceholder {
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+}

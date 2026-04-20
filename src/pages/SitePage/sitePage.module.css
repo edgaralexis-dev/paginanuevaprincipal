@@ -1,0 +1,137 @@
+.page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #f5f2ed;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  padding: 24px 20px 48px;
+}
+
+.inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.back {
+  display: inline-block;
+  color: #3dd87a;
+  text-decoration: none;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  margin-bottom: 20px;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(28px, 5vw, 36px);
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+  line-height: 1.1;
+}
+
+.lead {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(245, 242, 237, 0.78);
+  margin: 0 0 24px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(245, 242, 237, 0.55);
+}
+
+.input,
+.textarea {
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  color: #f5f2ed;
+  outline: none;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: rgba(61, 216, 122, 0.45);
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.submit {
+  align-self: flex-start;
+  background: #3dd87a;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.submit:hover {
+  filter: brightness(1.05);
+}
+
+.hint {
+  font-size: 12px;
+  color: rgba(245, 242, 237, 0.45);
+  margin-top: 8px;
+}
+
+.faqList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.faqItem {
+  border-bottom: 1px solid #2a2a2a;
+  padding: 16px 0;
+}
+
+.faqQ {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: #f5f2ed;
+}
+
+.faqA {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(245, 242, 237, 0.72);
+  margin: 0;
+}
+
+.link {
+  color: #3dd87a;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

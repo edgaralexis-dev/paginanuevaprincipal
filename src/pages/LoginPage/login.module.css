@@ -1,0 +1,319 @@
+.page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #f5f2ed;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  padding: 0 24px 48px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.pageLogin::before {
+  content: '';
+  position: fixed;
+  inset: -40% -20% auto -20%;
+  height: 70vh;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(61, 216, 122, 0.12), transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pageLogin::after {
+  content: '';
+  position: fixed;
+  bottom: -20%;
+  right: -15%;
+  width: 55vw;
+  height: 55vh;
+  max-width: 520px;
+  background: radial-gradient(circle, rgba(255, 77, 26, 0.06), transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pageLogin .header,
+.pageLogin .card {
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 32px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+.back:hover {
+  color: #3dd87a;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.card {
+  max-width: 420px;
+  margin: 0 auto;
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 28px 24px 32px;
+}
+
+.cardChoice {
+  max-width: 460px;
+  padding: 32px 28px 36px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(30, 30, 30, 0.98) 0%, #161616 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 0 1px rgba(61, 216, 122, 0.04),
+    0 24px 48px -12px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.choiceHeader {
+  margin-bottom: 20px;
+}
+
+.stepPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  background: rgba(61, 216, 122, 0.1);
+  border: 1px solid rgba(61, 216, 122, 0.22);
+  margin-bottom: 16px;
+}
+
+.subLead {
+  font-size: 14px;
+  color: #a8a8a8;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 36em;
+}
+
+.auxLinks {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(245, 242, 237, 0.42);
+  line-height: 1.5;
+}
+.auxLinks a {
+  color: #3dd87a;
+  text-decoration: none;
+}
+.auxLinks a:hover {
+  text-decoration: underline;
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.methodCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #2f2f2f;
+  background: linear-gradient(135deg, #1a1a1a 0%, #141414 100%);
+  color: #f5f2ed;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.15s,
+    box-shadow 0.2s;
+}
+
+.methodCard:hover {
+  border-color: rgba(61, 216, 122, 0.35);
+  background: linear-gradient(135deg, #1e2420 0%, #161816 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.methodCard:focus-visible {
+  outline: none;
+  border-color: #3dd87a;
+  box-shadow: 0 0 0 3px rgba(61, 216, 122, 0.2);
+}
+
+.methodIcon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.methodIconWa {
+  color: #fff;
+  background: linear-gradient(145deg, #25d366 0%, #128c7e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 4px 12px rgba(18, 140, 126, 0.35);
+}
+
+.waGlyph {
+  display: block;
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.12));
+}
+
+.methodIconMail {
+  color: #e8f4ff;
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.12));
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.methodBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.methodTitle {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.methodHint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #7a7a7a;
+  line-height: 1.35;
+}
+
+.methodChevron {
+  flex-shrink: 0;
+  color: #555;
+  transition: transform 0.2s, color 0.2s;
+}
+
+.methodCard:hover .methodChevron {
+  color: #3dd87a;
+  transform: translateX(3px);
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  background: #0a0a0a;
+  color: #f5f2ed;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.input:focus {
+  border-color: rgba(61, 216, 122, 0.45);
+}
+
+.inputErr {
+  border-color: #ff4d1a;
+}
+
+.error {
+  font-size: 12px;
+  color: #ff8a6a;
+  margin-top: 8px;
+}
+
+.primary {
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 4px;
+  background: #3dd87a;
+  color: #0a0a0a;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(61, 216, 122, 0.25);
+}
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghost {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ghost:hover {
+  color: #f5f2ed;
+}
