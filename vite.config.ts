@@ -3,7 +3,12 @@ import react from '@vitejs/plugin-react';
 
 const testApi = 'https://testapi.primetix.fun';
 
+// GitHub Pages (ruta /repo/): definir BASE_PATH en CI. Subdominio propio en raíz: BASE_PATH=/
+const base =
+  (process.env.BASE_PATH && process.env.BASE_PATH.trim()) || '/';
+
 export default defineConfig({
+  base,
   plugins: [react()],
   server: {
     port: 3010,
