@@ -1,3 +1,4 @@
+import { normalizeIdPais } from '../utils/idPais';
 import { apiGet, apiPut } from './apiClient';
 
 export type ResumeEvent = {
@@ -27,7 +28,8 @@ export async function getEvents(): Promise<ResumeEvent[]> {
  * GET `/primetixapi/api/Evento/ObtenerEventosAgrupadosPorIdPais/{idPais}`
  */
 export async function getEventsByCountryGrouped(idPais: number): Promise<ResumeEventsByCountry[]> {
-  return apiGet<ResumeEventsByCountry[]>(`/primetixapi/api/Evento/ObtenerEventosAgrupadosPorIdPais/${idPais}`);
+  const id = normalizeIdPais(idPais);
+  return apiGet<ResumeEventsByCountry[]>(`/primetixapi/api/Evento/ObtenerEventosAgrupadosPorIdPais/${id}`);
 }
 
 function eventDateToMs(fecha: string): number {

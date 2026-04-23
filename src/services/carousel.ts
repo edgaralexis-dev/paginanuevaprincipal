@@ -1,3 +1,4 @@
+import { normalizeIdPais } from '../utils/idPais';
 import { apiGet } from './apiClient';
 
 export type CarouselEvent = {
@@ -17,5 +18,6 @@ export type CarouselEvent = {
 };
 
 export async function getCarouselByCountry(idPais: number): Promise<CarouselEvent[]> {
-  return apiGet<CarouselEvent[]>(`/primetixapi/api/Imagen/ObtieneCarrousel/${idPais}`);
+  const id = normalizeIdPais(idPais);
+  return apiGet<CarouselEvent[]>(`/primetixapi/api/Imagen/ObtieneCarrousel/${id}`);
 }

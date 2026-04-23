@@ -16,15 +16,10 @@ import styles from './home.module.css';
 import HomeMobileView from './HomeMobileView';
 import WhatsAppIcon from '../../components/icons/WhatsAppIcon';
 import logoSrc from '../../assets/LogoPrimetix.svg';
+import { normalizeIdPais } from '../../utils/idPais';
 
-/** Mismo país que carrusel / contexto legacy (Guatemala = 1). Override: `VITE_CODIGO_PAIS`. */
-function codigoPaisHome(): number {
-  const raw = (import.meta.env.VITE_CODIGO_PAIS as string | undefined)?.trim();
-  if (!raw) return 1;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : 1;
-}
-const CODIGO_PAIS_HOME = codigoPaisHome();
+/** Mismo país que carrusel / eventos (Guatemala = 1). Override: `VITE_CODIGO_PAIS`. */
+const CODIGO_PAIS_HOME = normalizeIdPais(import.meta.env.VITE_CODIGO_PAIS as string | undefined);
 
 function fmtShortDate(iso?: string) {
   if (!iso) return '—';
