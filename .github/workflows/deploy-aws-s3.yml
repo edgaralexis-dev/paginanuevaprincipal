@@ -116,6 +116,27 @@ jobs:
           echo "Destino: $DEST"
           aws s3 sync dist/ "$DEST" --delete
 
+      # Evita que index.html quede con max-age alto en S3: si apunta a un JS viejo, el navegador nunca pide el nuevo chunk.
+      - name: index.html y 404.html con Cache-Control corto
+        run: |
+          BUCKET="${{ steps.cfg.outputs.bucket }}"
+          P="${{ steps.cfg.outputs.prefix }}"
+          [ -n "$P" ] && PREFIX="${P}/" || PREFIX=""
+          BASE="s3://${BUCKET}/${PREFIX}"
+          aws s3 cp dist/index.html "${BASE}index.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+          if [ -f dist/404.html ]; then
+            aws s3 cp dist/404.html "${BASE}404.html" \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "text/html; charset=utf-8"
+          fi
+
+      - name: Bundle referenciado por index.html (comprueba en el navegador)
+        run: |
+          echo "Referencia JS en este despliegue:"
+          grep -oE 'src="assets/index-[^"]+\.js"' dist/index.html || true
+
       - name: Invalidar CloudFront
         if: vars.SKIP_CLOUDFRONT_INVALIDATION != 'true'
         run: |
