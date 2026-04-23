@@ -10,6 +10,11 @@
 #
 # Secretos: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (u OIDC; este ejemplo usa claves).
 #
+# Si ApiUsr (o el usuario IAM) no tiene cloudfront:CreateInvalidation, el deploy falla al final.
+#   Opción A: que IAM agregue esa acción sobre la distribución (recomendado).
+#   Opción B: variable SKIP_CLOUDFRONT_INVALIDATION=true (solo sube a S3; la caché CDN
+#   puede tardar en actualizarse hasta que expire o invaliden a mano en consola AWS).
+#
 # Seguridad: publicar en la raíz de dev.primetix.cloud / primetix.cloud reemplaza lo que
 #   haya ahí. Si el portal ya ocupa la raíz, define S3_PREFIX_PAGINA_NUEVA y ajusta CloudFront.
 
@@ -112,6 +117,7 @@ jobs:
           aws s3 sync dist/ "$DEST" --delete
 
       - name: Invalidar CloudFront
+        if: vars.SKIP_CLOUDFRONT_INVALIDATION != 'true'
         run: |
           DIST="${{ steps.cfg.outputs.cf }}"
           P="${{ steps.cfg.outputs.prefix }}"
@@ -121,3 +127,7 @@ jobs:
             PATHS="/*"
           fi
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "$PATHS"
+
+      - name: Invalidación CloudFront omitida
+        if: vars.SKIP_CLOUDFRONT_INVALIDATION == 'true'
+        run: echo "SKIP_CLOUDFRONT_INVALIDATION=true — no se invalidó CDN. Añade IAM o quita esta variable."
