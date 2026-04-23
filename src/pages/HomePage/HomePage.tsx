@@ -18,7 +18,13 @@ import WhatsAppIcon from '../../components/icons/WhatsAppIcon';
 import logoSrc from '../../assets/LogoPrimetix.svg';
 
 /** Mismo país que carrusel / contexto legacy (Guatemala = 1). Override: `VITE_CODIGO_PAIS`. */
-const CODIGO_PAIS_HOME = Number((import.meta.env.VITE_CODIGO_PAIS as string | undefined) ?? '1');
+function codigoPaisHome(): number {
+  const raw = (import.meta.env.VITE_CODIGO_PAIS as string | undefined)?.trim();
+  if (!raw) return 1;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+const CODIGO_PAIS_HOME = codigoPaisHome();
 
 function fmtShortDate(iso?: string) {
   if (!iso) return '—';
