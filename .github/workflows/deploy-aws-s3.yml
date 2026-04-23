@@ -3,7 +3,7 @@
 # Variables (Repository → Settings → Secrets and variables → Actions):
 #   S3_BUCKET_DEV_PORTAL, S3_BUCKET_PROD_PAGINA, S3_BUCKET_REGION_US_EAST_1
 #   CLOUDFRONT_DISTRIBUTION_ID_DEV_PORTAL, CLOUDFRONT_DISTRIBUTION_ID_PROD_PORTAL
-#   VITE_API_DEV_URL, VITE_API_PROD_URL
+#   VITE_API_DEV_URL, VITE_API_PROD_URL (si falta dev/prod, se usa VITE_URL_API como respaldo)
 #
 # Opcional: S3_PREFIX_PAGINA_NUEVA — carpeta dentro del bucket (sin / al inicio/fin),
 #   ej. nueva-principal → sync a s3://bucket/nueva-principal/ y BASE_PATH=/nueva-principal/
@@ -57,18 +57,22 @@ jobs:
           if [ "$T" = "prod" ]; then
             echo "bucket=${{ vars.S3_BUCKET_PROD_PAGINA }}" >> "$GITHUB_OUTPUT"
             echo "cf=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_PROD_PORTAL }}" >> "$GITHUB_OUTPUT"
-            echo "api=${{ vars.VITE_API_PROD_URL }}" >> "$GITHUB_OUTPUT"
+            API="${{ vars.VITE_API_PROD_URL }}"
+            if [ -z "$API" ]; then API="${{ vars.VITE_URL_API }}"; fi
+            echo "api=$API" >> "$GITHUB_OUTPUT"
           else
             echo "bucket=${{ vars.S3_BUCKET_DEV_PORTAL }}" >> "$GITHUB_OUTPUT"
             echo "cf=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_DEV_PORTAL }}" >> "$GITHUB_OUTPUT"
-            echo "api=${{ vars.VITE_API_DEV_URL }}" >> "$GITHUB_OUTPUT"
+            API="${{ vars.VITE_API_DEV_URL }}"
+            if [ -z "$API" ]; then API="${{ vars.VITE_URL_API }}"; fi
+            echo "api=$API" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Comprobar configuración
         run: |
           test -n "${{ steps.cfg.outputs.bucket }}" || { echo "Falta variable del bucket"; exit 1; }
           test -n "${{ steps.cfg.outputs.cf }}" || { echo "Falta CLOUDFRONT_DISTRIBUTION_ID_*"; exit 1; }
-          test -n "${{ steps.cfg.outputs.api }}" || { echo "Falta VITE_API_*_URL"; exit 1; }
+          test -n "${{ steps.cfg.outputs.api }}" || { echo "Falta URL del API: variable VITE_API_DEV_URL (dev) o VITE_API_PROD_URL (prod), o VITE_URL_API como respaldo"; exit 1; }
 
       - name: Setup Node
         uses: actions/setup-node@v4
