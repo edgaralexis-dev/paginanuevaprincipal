@@ -1,0 +1,119 @@
+# Despliegue a S3 + invalidación CloudFront (mismo patrón que el portal).
+#
+# Variables (Repository → Settings → Secrets and variables → Actions):
+#   S3_BUCKET_DEV_PORTAL, S3_BUCKET_PROD_PAGINA, S3_BUCKET_REGION_US_EAST_1
+#   CLOUDFRONT_DISTRIBUTION_ID_DEV_PORTAL, CLOUDFRONT_DISTRIBUTION_ID_PROD_PORTAL
+#   VITE_API_DEV_URL, VITE_API_PROD_URL
+#
+# Opcional: S3_PREFIX_PAGINA_NUEVA — carpeta dentro del bucket (sin / al inicio/fin),
+#   ej. nueva-principal → sync a s3://bucket/nueva-principal/ y BASE_PATH=/nueva-principal/
+#
+# Secretos: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (u OIDC; este ejemplo usa claves).
+#
+# Seguridad: publicar en la raíz de dev.primetix.cloud / primetix.cloud reemplaza lo que
+#   haya ahí. Si el portal ya ocupa la raíz, define S3_PREFIX_PAGINA_NUEVA y ajusta CloudFront.
+
+name: Desplegar AWS (S3 + CloudFront)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Entorno
+        type: choice
+        options: [dev, prod]
+        default: dev
+  push:
+    branches: [main]
+
+concurrency:
+  group: aws-deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-aws:
+    if: github.event_name == 'workflow_dispatch' || vars.AWS_DEPLOY_DEV_ON_PUSH == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod' && 'production' || 'development' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Entorno de despliegue
+        id: cfg
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            T="${{ github.event.inputs.target }}"
+          else
+            T="dev"
+          fi
+          echo "target=$T" >> "$GITHUB_OUTPUT"
+          PREFIX_RAW="${{ vars.S3_PREFIX_PAGINA_NUEVA }}"
+          PREFIX_RAW="${PREFIX_RAW#/}"
+          PREFIX_RAW="${PREFIX_RAW%/}"
+          echo "prefix=$PREFIX_RAW" >> "$GITHUB_OUTPUT"
+          if [ "$T" = "prod" ]; then
+            echo "bucket=${{ vars.S3_BUCKET_PROD_PAGINA }}" >> "$GITHUB_OUTPUT"
+            echo "cf=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_PROD_PORTAL }}" >> "$GITHUB_OUTPUT"
+            echo "api=${{ vars.VITE_API_PROD_URL }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "bucket=${{ vars.S3_BUCKET_DEV_PORTAL }}" >> "$GITHUB_OUTPUT"
+            echo "cf=${{ vars.CLOUDFRONT_DISTRIBUTION_ID_DEV_PORTAL }}" >> "$GITHUB_OUTPUT"
+            echo "api=${{ vars.VITE_API_DEV_URL }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comprobar configuración
+        run: |
+          test -n "${{ steps.cfg.outputs.bucket }}" || { echo "Falta variable del bucket"; exit 1; }
+          test -n "${{ steps.cfg.outputs.cf }}" || { echo "Falta CLOUDFRONT_DISTRIBUTION_ID_*"; exit 1; }
+          test -n "${{ steps.cfg.outputs.api }}" || { echo "Falta VITE_API_*_URL"; exit 1; }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          BASE_PATH: ${{ steps.cfg.outputs.prefix != '' && format('/{0}/', steps.cfg.outputs.prefix) || '/' }}
+          VITE_URL_API: ${{ steps.cfg.outputs.api }}
+          VITE_PRIMETIX_WEB_ORIGIN: ${{ vars.VITE_PRIMETIX_WEB_ORIGIN }}
+          VITE_CODIGO_PAIS: ${{ vars.VITE_CODIGO_PAIS }}
+          VITE_USE_HASH_ROUTER: ${{ vars.VITE_USE_HASH_ROUTER }}
+        run: npm run build
+
+      - name: Credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.S3_BUCKET_REGION_US_EAST_1 != '' && vars.S3_BUCKET_REGION_US_EAST_1 || 'us-east-1' }}
+
+      - name: Sincronizar S3
+        run: |
+          BUCKET="${{ steps.cfg.outputs.bucket }}"
+          P="${{ steps.cfg.outputs.prefix }}"
+          if [ -n "$P" ]; then
+            DEST="s3://${BUCKET}/${P}/"
+          else
+            DEST="s3://${BUCKET}/"
+          fi
+          echo "Destino: $DEST"
+          aws s3 sync dist/ "$DEST" --delete
+
+      - name: Invalidar CloudFront
+        run: |
+          DIST="${{ steps.cfg.outputs.cf }}"
+          P="${{ steps.cfg.outputs.prefix }}"
+          if [ -n "$P" ]; then
+            PATHS="/${P}/*"
+          else
+            PATHS="/*"
+          fi
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "$PATHS"
