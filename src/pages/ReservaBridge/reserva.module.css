@@ -170,57 +170,105 @@
   gap: 8px;
 }
 
-.mapVisual {
+/* Misma idea que `mapViewportSx` / `mapViewportSxMapaPie` en Booking (paginaprincipal). */
+.mapVisualShell {
   position: relative;
+  isolation: isolate;
   border: 1px solid #252525;
   border-radius: 8px;
   overflow: hidden;
-  height: min(76vh, 980px);
-  min-height: 520px;
+  width: 100%;
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
 }
 
-.mapViewport {
+.mapAspectMapaPie {
+  aspect-ratio: 1 / 1;
+  min-height: 260px;
+  max-height: min(460px, 70vh);
+}
+
+.mapAspectBooking {
+  aspect-ratio: 1 / 1;
+  min-height: 260px;
+  max-height: 460px;
+}
+
+@media (min-width: 600px) {
+  .mapAspectBooking {
+    aspect-ratio: 4 / 3;
+    min-height: 300px;
+    max-height: 560px;
+  }
+}
+
+@media (min-width: 900px) {
+  .mapAspectBooking {
+    aspect-ratio: 16 / 10;
+    min-height: 380px;
+    max-height: 700px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .mapAspectBooking {
+    aspect-ratio: 16 / 9;
+    min-height: 420px;
+    max-height: 780px;
+  }
+}
+
+.mapLoaderFill {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapPanZoomHost {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: #fff;
   overflow: hidden;
-  position: relative;
-  touch-action: none;
-  cursor: default;
+  display: flex;
+  flex-direction: column;
 }
 
-.mapViewportDragging {
-  cursor: grabbing;
-}
-
-.mapZoomLayer {
+.mapStaticInner {
   width: 100%;
-  height: 100%;
-  transform-origin: center center;
-  transition: transform 120ms ease-out;
-}
-
-.svgMapHost {
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #fff;
 }
 
-.svgMapHost svg {
+.mapStaticInner img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
-.svgMapHost [id] {
-  cursor: pointer;
+/* Capa UI encima del viewport: evita que el mapa (SVG/transform) robe clics en algunos navegadores */
+.mapOverlayUi {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
 }
 
 .mapControls {
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 4;
+  pointer-events: auto;
+  transform: translateZ(0);
   display: grid;
   gap: 8px;
 }
@@ -237,6 +285,9 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 1;
 }
 
 .mapCtlHome svg {
@@ -261,13 +312,6 @@
   border-bottom: none;
 }
 
-.mapVisual img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .mapVisualGrad {
   position: absolute;
   inset: 0;
@@ -285,12 +329,12 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   pointer-events: none;
-  z-index: 3;
+  z-index: 18;
 }
 
 .seatTooltip {
   position: absolute;
-  z-index: 5;
+  z-index: 22;
   min-width: 190px;
   background: #ffffff;
   color: #121212;
@@ -520,9 +564,10 @@
     grid-template-columns: 1fr;
   }
 
-  .mapVisual {
-    height: 420px;
-    min-height: 420px;
+  .mapCtlBtn {
+    width: 40px;
+    height: 40px;
+    font-size: 26px;
   }
 
   .pricePanel {

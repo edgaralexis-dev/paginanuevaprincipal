@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ReactSvgPanZoomLoader, SvgLoaderSelectElement } from 'react-svg-pan-zoom-loader';
+import { UncontrolledReactSVGPanZoom } from 'react-svg-pan-zoom';
 import {
   getCompraRapidaImageUrl,
   getEventDataById,
@@ -22,11 +24,14 @@ export default function ReservaBridge() {
   const [eventLocation, setEventLocation] = useState<string>('');
   const [eventDate, setEventDate] = useState<string>('');
   const [spotifyUrl, setSpotifyUrl] = useState<string>('');
-  const [svgMarkup, setSvgMarkup] = useState<string>('');
-  const [svgMapError, setSvgMapError] = useState<string>('');
-  const [mapScale, setMapScale] = useState(1);
-  const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
-  const [isDraggingMap, setIsDraggingMap] = useState(false);
+  const [eventTipo, setEventTipo] = useState<string>('');
+  const [width, setWidth] = useState(1);
+  const [height, setHeight] = useState(1);
+  const [isSvgLoaded, setIsSvgLoaded] = useState(false);
+  const [svgPanZoomEnabled, setSvgPanZoomEnabled] = useState(true);
+  const [isXs, setIsXs] = useState(false);
+  const [pointX, setPointX] = useState(300);
+  const [pointY, setPointY] = useState(300);
   const [seatTooltip, setSeatTooltip] = useState<{
     x: number;
     y: number;
@@ -39,18 +44,29 @@ export default function ReservaBridge() {
   const [selectedLocality, setSelectedLocality] = useState<string>('');
   const [selectedQtyByLocality, setSelectedQtyByLocality] = useState<Record<string, number>>({});
   const [secondsLeft, setSecondsLeft] = useState(10 * 60);
-  const svgHostRef = useRef<HTMLDivElement | null>(null);
-  const mapViewportRef = useRef<HTMLDivElement | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const Viewer = useRef<UncontrolledReactSVGPanZoom | null>(null);
+  const refDiv = useRef<HTMLDivElement | null>(null);
 
   const nombre = safeDecode(eventName) || 'Evento';
   const artista = safeDecode(eventArtist) || '—';
   const codigo = safeDecode(eventId) || '—';
   const eventIdNumber = Number(codigo);
-  const isSvgMap = useMemo(
-    () => isSvgUrl((eventInteractiveSvgSrc || eventMapImage || '').trim()),
-    [eventInteractiveSvgSrc, eventMapImage],
-  );
+  const mapInteractiveSrc = useMemo(() => {
+    const a = (eventInteractiveSvgSrc || '').trim();
+    if (a) return a;
+    const m = (eventMapImage || '').trim();
+    if (isSvgUrl(m)) return m;
+    return '';
+  }, [eventInteractiveSvgSrc, eventMapImage]);
+
+  const canUsePanZoom = Boolean(mapInteractiveSrc) && svgPanZoomEnabled;
+
+  const rasterMapSrc = useMemo(() => {
+    if (mapInteractiveSrc && !svgPanZoomEnabled) return mapInteractiveSrc;
+    return (eventMapImage || eventImage || '').trim();
+  }, [mapInteractiveSrc, svgPanZoomEnabled, eventMapImage, eventImage]);
+
+  const isMapaPie = eventTipo === 'Evento publico Mapa Pie';
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +106,7 @@ export default function ReservaBridge() {
           else if (detailMap) setEventMapImage(detailMap);
           setEventInteractiveSvgSrc(svgSrc);
           if (detailSpotify) setSpotifyUrl(detailSpotify);
+          setEventTipo(eventDetail.tipoEvento || '');
         }
       } catch {
         if (!cancelled) setError('No se pudo cargar el mapa y valores de localidades.');
@@ -110,33 +127,74 @@ export default function ReservaBridge() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const svgSource = eventInteractiveSvgSrc || eventMapImage;
-    if (!isSvgMap || !svgSource) {
-      setSvgMarkup('');
-      setSvgMapError('');
+    setIsSvgLoaded(false);
+    setSvgPanZoomEnabled(true);
+  }, [mapInteractiveSrc]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 599px)');
+    const apply = () => setIsXs(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  const fitViewerIfReady = useCallback(() => {
+    const v = Viewer.current;
+    if (!v || width <= 0 || height <= 0) return;
+    const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    const viewBox = svgEl?.getAttribute('viewBox');
+    if (!viewBox || viewBox.trim().length === 0) return;
+    v.fitToViewer();
+  }, [width, height]);
+
+  useEffect(() => {
+    if (!isSvgLoaded) return;
+    const id = window.setTimeout(fitViewerIfReady, 50);
+    return () => window.clearTimeout(id);
+  }, [isSvgLoaded, isXs, width, height, fitViewerIfReady]);
+
+  useEffect(() => {
+    const handleResize = () => fitViewerIfReady();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitViewerIfReady]);
+
+  useLayoutEffect(() => {
+    if (!mapInteractiveSrc || !svgPanZoomEnabled) return () => {};
+    const el = refDiv.current;
+    if (!el) return () => {};
+    const ro = new ResizeObserver(() => {
+      const currentHeight = el.clientHeight || 0;
+      setWidth(!isXs ? el.clientWidth || 0 : el.clientWidth || 300);
+      if (currentHeight < 500) {
+        setHeight(600);
+      } else {
+        setHeight(currentHeight);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isXs, mapInteractiveSrc, svgPanZoomEnabled, isSvgLoaded]);
+
+  useEffect(() => {
+    setPointX(width > 0 ? width / 2 : 300);
+    setPointY(height > 0 ? height / 2 : 300);
+  }, [width, height]);
+
+  const handleSvgReady = () => {
+    setIsSvgLoaded(true);
+    const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    const viewBox = svgEl?.getAttribute('viewBox')?.trim();
+    if (!viewBox) {
+      setSvgPanZoomEnabled(false);
       return;
     }
-    (async () => {
-      try {
-        const res = await fetch(svgSource);
-        if (!res.ok) throw new Error(`HTTP_${res.status}`);
-        const text = await res.text();
-        if (!cancelled) {
-          setSvgMarkup(text);
-          setSvgMapError('');
-        }
-      } catch {
-        if (!cancelled) {
-          setSvgMarkup('');
-          setSvgMapError('No se pudo cargar el mapa SVG interactivo.');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [eventInteractiveSvgSrc, eventMapImage, isSvgMap]);
+    setSvgPanZoomEnabled(true);
+  };
+
+  const viewerWidth = Number.isFinite(width) && width > 0 ? Math.max(width, 320) : 320;
+  const viewerHeight = Number.isFinite(height) && height > 0 ? Math.max(height, 320) : 320;
 
   const localityRows = useMemo(() => {
     const rows = new Map<string, { name: string; price: number; available: number; color?: string }>();
@@ -300,20 +358,33 @@ export default function ReservaBridge() {
     ],
   );
 
-  const zoomIn = () => setMapScale((s) => Math.min(4, Number((s + 0.25).toFixed(2))));
-  const zoomOut = () => setMapScale((s) => Math.max(1, Number((s - 0.25).toFixed(2))));
-  const zoomReset = () => {
-    setMapScale(1);
-    setMapPan({ x: 0, y: 0 });
+  const handleHome = () => {
+    const v = Viewer.current;
+    if (!v) return;
+    const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    const viewBox = svgEl?.getAttribute('viewBox');
+    if (!viewBox || viewBox.trim().length === 0) return;
+    v.fitToViewer();
+  };
+
+  const handleZoomIn = () => {
+    if (!Viewer.current || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return;
+    Viewer.current.zoom(pointX, pointY, 1.1);
+  };
+
+  const handleZoomOut = () => {
+    if (!Viewer.current || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return;
+    Viewer.current.zoom(pointX, pointY, 0.9);
   };
 
   useEffect(() => {
-    if (!isSvgMap || !svgMarkup || !svgHostRef.current) return;
-    const host = svgHostRef.current;
-    const nodes = host.querySelectorAll('[id]');
+    if (!canUsePanZoom || !isSvgLoaded) return;
+    const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    if (!svgRoot) return;
+    const nodes = svgRoot.querySelectorAll('[id]');
     nodes.forEach((el) => {
-      const seatCode = getSeatCodeFromSvgId(el.id);
-      if (!seatCode) return;
+      const seatCode = resolveMapElementToSeatCode(svgRoot, el.id);
+      if (seatCode == null) return;
       const seat = seatByCode.get(seatCode);
       if (!seat) return;
       const blocked = ['AR', 'VR', 'TI'].includes((seat.estadoAsiento || '').toUpperCase());
@@ -323,16 +394,16 @@ export default function ReservaBridge() {
       (el as HTMLElement).style.strokeWidth = isActive ? '2' : '0';
       (el as HTMLElement).style.opacity = blocked ? '0.28' : '1';
     });
-  }, [activeSeatCode, isSvgMap, seatByCode, svgMarkup]);
+  }, [activeSeatCode, canUsePanZoom, isSvgLoaded, seatByCode]);
 
-  const onSvgMapClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (isDraggingMap) return;
+  const onSvgMapClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
     const withId = target.closest('[id]') as HTMLElement | null;
     const id = withId?.id || target.id || '';
-    const seatCode = getSeatCodeFromSvgId(id);
-    if (!seatCode) return;
+    const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    const seatCode = resolveMapElementToSeatCode(svgRoot, id);
+    if (seatCode == null) return;
     const seat = seatByCode.get(seatCode);
     if (!seat) return;
     const blocked = ['AR', 'VR', 'TI'].includes((seat.estadoAsiento || '').toUpperCase());
@@ -347,61 +418,47 @@ export default function ReservaBridge() {
     setSeatTooltip(buildTooltipData(event, seat));
   };
 
-  const onMapPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    const withId = target?.closest('[id]') as HTMLElement | null;
-    const seatCode = getSeatCodeFromSvgId(withId?.id || target?.id || '');
-    // Si estamos sobre un asiento/shape con id de asiento, priorizar tooltip/selección y no iniciar pan.
-    if (seatCode) return;
-    (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
-    dragStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      panX: mapPan.x,
-      panY: mapPan.y,
-    };
-    setIsDraggingMap(false);
-  };
-
-  const onMapPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const start = dragStartRef.current;
-    if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) setIsDraggingMap(true);
-    setMapPan({
-      x: start.panX + dx,
-      y: start.panY + dy,
-    });
-  };
-
-  const onMapPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
-    window.setTimeout(() => setIsDraggingMap(false), 0);
-    dragStartRef.current = null;
+  const onMapMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    const el = refDiv.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setPointX(event.clientX - r.left);
+      setPointY(event.clientY - r.top);
+    }
+    onSvgMapMove(event);
   };
 
   const onSvgMapMove = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
     const withId = target.closest('[id]') as HTMLElement | null;
-    const seatCode = getSeatCodeFromSvgId(withId?.id || target.id || '');
-    if (!seatCode) {
+    const rawId = withId?.id || target.id || '';
+    const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
+    const seatCode = resolveMapElementToSeatCode(svgRoot, rawId);
+    const host = refDiv.current;
+    if (seatCode == null) {
+      if (host) host.style.cursor = '';
       setSeatTooltip(null);
       return;
     }
     const seat = seatByCode.get(seatCode);
     if (!seat) {
+      if (host) host.style.cursor = '';
       setSeatTooltip(null);
       return;
     }
+    const blocked = ['AR', 'VR', 'TI'].includes((seat.estadoAsiento || '').toUpperCase());
+    if (host) host.style.cursor = blocked ? 'not-allowed' : 'pointer';
     setSeatTooltip(buildTooltipData(event, seat));
   };
 
-  const onSvgMapLeave = () => setSeatTooltip(null);
+  const onSvgMapLeave = () => {
+    if (refDiv.current) refDiv.current.style.cursor = '';
+    setSeatTooltip(null);
+  };
 
   const buildTooltipData = (event: MouseEvent<HTMLDivElement>, seat: SeatMap) => {
-    const viewport = mapViewportRef.current;
+    const viewport = refDiv.current;
     const rect = viewport?.getBoundingClientRect();
     const rawX = rect ? event.clientX - rect.left + 12 : 12;
     const rawY = rect ? event.clientY - rect.top + 12 : 12;
@@ -484,54 +541,105 @@ export default function ReservaBridge() {
             {!loading && localityRows.length > 0 ? (
               <div className={styles.localityLayout}>
                 <div className={styles.mapPanel}>
-                  <div className={styles.mapVisual}>
-                    <div
-                      className={`${styles.mapViewport} ${isDraggingMap ? styles.mapViewportDragging : ''}`}
-                      ref={mapViewportRef}
-                      onPointerDown={onMapPointerDown}
-                      onPointerMove={onMapPointerMove}
-                      onPointerUp={onMapPointerUp}
-                    >
-                      <div
-                        className={styles.mapZoomLayer}
-                        style={{ transform: `translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapScale})` }}
-                      >
-                        {isSvgMap && svgMarkup ? (
+                  <div
+                    className={`${styles.mapVisualShell} ${isMapaPie ? styles.mapAspectMapaPie : styles.mapAspectBooking}`}
+                  >
+                    {canUsePanZoom ? (
+                      <ReactSvgPanZoomLoader
+                        className={styles.mapLoaderFill}
+                        key={mapInteractiveSrc}
+                        src={mapInteractiveSrc}
+                        proxy={
+                          <>
+                            <SvgLoaderSelectElement selector="svg" id="tooltip-id" onSVGReady={handleSvgReady} />
+                          </>
+                        }
+                        render={(content) => (
                           <div
-                            ref={svgHostRef}
-                            className={styles.svgMapHost}
-                            onClick={onSvgMapClick}
-                            onMouseMove={onSvgMapMove}
+                            ref={refDiv}
+                            onMouseMove={onMapMouseMove}
                             onMouseLeave={onSvgMapLeave}
-                            dangerouslySetInnerHTML={{ __html: svgMarkup }}
-                          />
-                        ) : eventMapImage || eventImage ? (
-                          <img src={eventMapImage || eventImage} alt={`Mapa visual de ${nombre}`} />
-                        ) : (
-                          <div className={styles.mapVisualPlaceholder}>Mapa del evento</div>
+                            onClickCapture={onSvgMapClickCapture}
+                            className={styles.mapPanZoomHost}
+                          >
+                            <UncontrolledReactSVGPanZoom
+                              ref={Viewer}
+                              width={viewerWidth}
+                              height={viewerHeight}
+                              background="white"
+                              tool="auto"
+                              detectPinchGesture
+                              detectAutoPan={false}
+                              scaleFactorMin={isXs ? 0.1 : 0.5}
+                              scaleFactorMax={isXs ? 20 : 10}
+                              toolbarProps={{ position: 'none' }}
+                              miniatureProps={{ position: 'none' }}
+                            >
+                              <svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                                {content}
+                              </svg>
+                            </UncontrolledReactSVGPanZoom>
+                          </div>
                         )}
+                      />
+                    ) : rasterMapSrc ? (
+                      <div className={styles.mapStaticInner}>
+                        <img src={rasterMapSrc} alt={`Mapa visual de ${nombre}`} />
                       </div>
-                    </div>
-                    <div className={styles.mapControls}>
-                      <button type="button" className={`${styles.mapCtlBtn} ${styles.mapCtlHome}`} onClick={zoomReset} aria-label="Reset">
-                        <svg viewBox="0 0 24 24" aria-hidden>
-                          <path
-                            d="M4 11.5L12 5l8 6.5M7 10.5V19h10v-8.5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                      <div className={styles.mapCtlStack}>
-                        <button type="button" className={styles.mapCtlBtn} onClick={zoomIn} aria-label="Acercar">
-                          +
+                    ) : (
+                      <div className={styles.mapStaticInner}>
+                        <div className={styles.mapVisualPlaceholder}>Mapa del evento</div>
+                      </div>
+                    )}
+                    <div className={styles.mapOverlayUi}>
+                      <div className={styles.mapControls}>
+                        <button
+                          type="button"
+                          className={`${styles.mapCtlBtn} ${styles.mapCtlHome}`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHome();
+                          }}
+                          aria-label="Reset"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden>
+                            <path
+                              d="M4 11.5L12 5l8 6.5M7 10.5V19h10v-8.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </button>
-                        <button type="button" className={styles.mapCtlBtn} onClick={zoomOut} aria-label="Alejar">
-                          -
-                        </button>
+                        <div className={styles.mapCtlStack}>
+                          <button
+                            type="button"
+                            className={styles.mapCtlBtn}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleZoomIn();
+                            }}
+                            aria-label="Acercar"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.mapCtlBtn}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleZoomOut();
+                            }}
+                            aria-label="Alejar"
+                          >
+                            -
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className={styles.mapVisualLabel}>Mapa del evento</div>
@@ -551,7 +659,6 @@ export default function ReservaBridge() {
                       </div>
                     ) : null}
                   </div>
-                  {svgMapError ? <div className={styles.error}>{svgMapError}</div> : null}
                 </div>
 
                 <div className={styles.pricePanel}>
@@ -649,7 +756,8 @@ function formatDate(iso: string): string {
   }
 }
 
-function getSeatCodeFromSvgId(id: string): number | null {
+/** Igual que `seatCodeFromElementId` en Booking: solo patrones de asiento (sin mezclar `m12`→12). */
+function seatCodeFromStrictElementId(id: string): number | null {
   if (!id) return null;
   const clean = id.trim();
   const patterns = [/^a_?(\d+)$/i, /^c_?(\d+)$/i, /^svg_?(\d+)$/i, /^(\d+)$/];
@@ -657,9 +765,46 @@ function getSeatCodeFromSvgId(id: string): number | null {
     const m = clean.match(p);
     if (m) return Number(m[1]);
   }
-  const onlyDigits = clean.replace(/\D/g, '');
-  if (!onlyDigits) return null;
-  return Number(onlyDigits);
+  return null;
+}
+
+/**
+ * Resuelve clic/hover del mapa a un código de asiento del API.
+ * Mesas en SVG: overlay `m{n}` y grupo `g{n}` con hijos `a_*` / `c_*` (mismo criterio que Booking).
+ */
+function resolveMapElementToSeatCode(svg: SVGSVGElement | null, elementId: string): number | null {
+  const id = elementId.trim();
+  if (!id) return null;
+
+  const direct = seatCodeFromStrictElementId(id);
+  if (direct != null) return direct;
+
+  if (!svg) return null;
+
+  const mesaNum = id.match(/^m(\d+)$/i)?.[1];
+  if (mesaNum) {
+    const grupo = svg.querySelector(`#g${mesaNum}`);
+    if (grupo) {
+      for (const el of grupo.querySelectorAll('[id]')) {
+        const c = seatCodeFromStrictElementId(el.id);
+        if (c != null) return c;
+      }
+    }
+    return null;
+  }
+
+  const grupoNum = id.match(/^g(\d+)$/i)?.[1];
+  if (grupoNum) {
+    const grupo = svg.querySelector(`#g${grupoNum}`);
+    if (grupo) {
+      for (const el of grupo.querySelectorAll('[id]')) {
+        const c = seatCodeFromStrictElementId(el.id);
+        if (c != null) return c;
+      }
+    }
+  }
+
+  return null;
 }
 
 function estadoAsientoLabel(estado: string | undefined): string {
