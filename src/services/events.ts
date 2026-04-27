@@ -31,6 +31,8 @@ export type EventData = {
   tipoEvento?: string;
   customAccountId?: string;
   eventoImagenes?: EventImage[];
+  /** Categoría / género del evento (si el API lo envía). */
+  genero?: string;
 };
 
 export type EventImage = {
@@ -122,6 +124,17 @@ export function getCompraRapidaImageUrl(ed: Partial<EventData> | null | undefine
 
 function esCompraRapidaOCompraMixta(tipo: string | undefined | null): boolean {
   return tipo === 'Evento Con Compra Rápida' || tipo === 'Evento Con Compra Mixta';
+}
+
+/**
+ * Evento en flujo compra rápida / mixta (misma idea que Booking).
+ * Usado en reserva para leyenda y colores solo en zonas mesa/silla.
+ */
+export function isCompraRapidaFlujoEvento(ed: Partial<EventData> | null | undefined): boolean {
+  if (!ed) return false;
+  if (esCompraRapidaOCompraMixta(ed.tipoEvento)) return true;
+  if (tieneImagenCompraRapida(ed)) return true;
+  return Boolean(getCompraRapidaImageUrl(ed)?.trim());
 }
 
 function tieneImagenCompraRapida(ed: Partial<EventData> | null | undefined): boolean {

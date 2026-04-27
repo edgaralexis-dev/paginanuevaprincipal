@@ -3,12 +3,84 @@
   background: #0a0a0a;
   color: #f5f2ed;
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  padding: 24px 20px 64px;
+  padding: 0 20px 64px;
+}
+
+.reservaTopBar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 0 16px;
+  margin: 0 -4px 8px;
+  border-bottom: 1px solid #222;
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.reservaLogo img {
+  display: block;
+  height: 28px;
+  width: auto;
+}
+
+.breadcrumbs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #9a9a9a;
+  justify-content: center;
+  min-width: 0;
+}
+
+.breadcrumbs a {
+  color: #3dd87a;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.crumbSep {
+  color: #555;
+  user-select: none;
+}
+
+.crumbCurrent {
+  color: #e8e8e8;
+  font-weight: 600;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.helpLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #c8c8c8;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.helpLink:hover {
+  color: #3dd87a;
 }
 
 .inner {
   max-width: 1560px;
   margin: 0 auto;
+  padding-top: 8px;
 }
 
 .back {
@@ -66,6 +138,39 @@
   color: #a8a8a8;
   font-size: 13px;
   line-height: 1.6;
+  margin: 0 0 18px;
+}
+
+.eventCategory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3dd87a;
+  margin: 0 0 6px;
+}
+
+.eventCategoryDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3dd87a;
+  box-shadow: 0 0 10px rgba(61, 216, 122, 0.5);
+}
+
+.heroLine {
+  font-size: 14px;
+  color: #c4c4c4;
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.metaMuted {
+  font-size: 12px;
+  color: #7a7a7a;
   margin: 0 0 18px;
 }
 
@@ -159,6 +264,374 @@
   grid-template-columns: minmax(0, 2.2fr) minmax(340px, 0.9fr);
   gap: 12px;
   align-items: start;
+}
+
+/* Permite que la columna del panel se encoja y active overflow-x en las pestañas (desktop). */
+.mapPanel,
+.pricePanel {
+  min-width: 0;
+}
+
+.localityLayoutLista {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+}
+
+@media (min-width: 1100px) {
+  .localityLayoutLista {
+    grid-template-columns: minmax(0, 2.2fr) minmax(340px, 0.9fr);
+  }
+}
+
+.mapLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 8px 4px 10px;
+  font-size: 11px;
+  color: #b8b8b8;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendHint {
+  font-size: 11px;
+  color: #9a9a9a;
+  line-height: 1.4;
+  max-width: 420px;
+}
+
+.legendHint strong {
+  color: #c8c8c8;
+}
+
+.legendSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.legendSoldOut {
+  background: #3a3a3a;
+}
+
+.legendSelected {
+  background: transparent;
+  border: 2px solid #3dd87a;
+  box-shadow: 0 0 0 1px rgba(61, 216, 122, 0.25) inset;
+}
+
+.mapStageToolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 25;
+  pointer-events: auto;
+}
+
+.mapViewToggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+  background: #141414;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.mapViewBtn,
+.mapViewBtnOn {
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  background: transparent;
+  color: #9a9a9a;
+}
+
+.mapViewBtnOn {
+  background: rgba(61, 216, 122, 0.18);
+  color: #3dd87a;
+}
+
+.mapViewBtn:hover {
+  color: #e0e0e0;
+}
+
+.listaStage {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 48px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #0d0d0d;
+}
+
+.zoneTabsWrap {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  min-width: 0;
+  background: #141414;
+  border-bottom: 2px solid rgba(61, 216, 122, 0.45);
+}
+
+.zoneTabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 4px;
+  min-height: 44px;
+  background: #141414;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+
+.zoneTabChevron {
+  display: none;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0;
+  background: #181818;
+  color: #9a9a9a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.zoneTabChevron:hover {
+  color: #3dd87a;
+  background: #1f1f1f;
+}
+
+.zoneTabChevron:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (min-width: 861px) {
+  .zoneTabsWrap[data-overflow='true'] .zoneTabChevron {
+    display: flex;
+  }
+}
+
+.zoneTab,
+.zoneTabOn {
+  flex: 0 0 auto;
+  padding: 10px 12px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  background: transparent;
+  color: #8a8a8a;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.zoneTab:hover {
+  color: #c8c8c8;
+}
+
+.zoneTabOn {
+  color: #3dd87a;
+  border-bottom-color: #3dd87a;
+}
+
+.zoneCard {
+  border-radius: 10px;
+  border: 1px solid #2a2a2a;
+  border-left-width: 4px;
+  padding: 12px 14px;
+  background: #141414;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.zoneCard:hover {
+  background: #1a1a1a;
+}
+
+.zoneCardActive {
+  background: #1a221c;
+  border-color: rgba(61, 216, 122, 0.45);
+  box-shadow: 0 0 0 1px rgba(61, 216, 122, 0.2);
+}
+
+.zoneCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.zoneCardName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f5f2ed;
+}
+
+.zoneCardBadge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0a0a0a;
+  background: #3dd87a;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.zoneCardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.zoneCardAvail {
+  color: #c9a227;
+}
+
+.zoneCardSold {
+  color: #888;
+}
+
+.zoneCardPrice {
+  color: #3dd87a;
+  font-size: 14px;
+}
+
+.qtyGlobal {
+  padding: 12px;
+  background: #161616;
+  border-top: 1px solid #252525;
+}
+
+.qtyGlobalTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+  margin-bottom: 10px;
+}
+
+.qtyGlobalRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.qtyGlobalBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #121212;
+  color: #f5f2ed;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.qtyGlobalBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.qtyGlobalValue {
+  font-size: 22px;
+  font-weight: 800;
+  min-width: 36px;
+  text-align: center;
+}
+
+.qtyGlobalNote {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #777;
+  text-align: center;
+}
+
+.selectedSeatsBox {
+  padding: 12px;
+  background: #121212;
+  border-top: 1px solid #252525;
+}
+
+.selectedSeatsTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+  margin-bottom: 8px;
+}
+
+.selectedSeatsPlaceholder {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.45;
+}
+
+.selectedSeatsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selectedSeatsList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: #c8c8c8;
+}
+
+.selectedSeatsList li span:last-child {
+  color: #3dd87a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lastSeatHint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #6a9a7a;
 }
 
 .mapPanel {
@@ -430,54 +903,33 @@
   max-height: min(76vh, 980px);
   display: flex;
   flex-direction: column;
+  color-scheme: dark;
 }
 
-.timeHeader {
-  padding: 12px 12px 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f3552;
-  background: #f3f3f3;
-  flex-shrink: 0;
+/* Sin barra visible (referencia): el contenido sigue desplazándose con rueda / tacto. */
+.zoneTabs,
+.priceRowsScroll,
+.listaStage {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.selectedHeader {
-  padding: 0 12px 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f3552;
-  background: #f3f3f3;
-  flex-shrink: 0;
+.zoneTabs::-webkit-scrollbar,
+.priceRowsScroll::-webkit-scrollbar,
+.listaStage::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .priceRowsScroll {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(61, 216, 122, 0.42) rgba(24, 24, 24, 0.85);
-}
-
-.priceRowsScroll::-webkit-scrollbar {
-  width: 5px;
-}
-
-.priceRowsScroll::-webkit-scrollbar-track {
-  background: rgba(28, 28, 28, 0.65);
-  border-radius: 999px;
-  margin: 4px 0;
-}
-
-.priceRowsScroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(61, 216, 122, 0.5), rgba(61, 216, 122, 0.28));
-  border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-.priceRowsScroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(61, 216, 122, 0.72);
+  overscroll-behavior: contain;
 }
 
 .priceRow {
@@ -539,10 +991,37 @@
   border-top: 1px solid #252525;
   padding: 12px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   background: #101010;
   margin-top: auto;
   flex-shrink: 0;
+}
+
+.expiryBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  background: linear-gradient(180deg, #3d2426 0%, #2a1818 100%);
+  border: 1px solid rgba(200, 90, 75, 0.28);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.expiryLabel {
+  font-size: 12px;
+  color: #b5abab;
+  line-height: 1.3;
+}
+
+.expiryTime {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #ff7040;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 20px rgba(255, 112, 64, 0.25);
 }
 
 .checkoutTotal {
@@ -595,6 +1074,20 @@
 @media (max-width: 860px) {
   .localityLayout {
     grid-template-columns: 1fr;
+  }
+
+  .localityLayoutLista {
+    grid-template-columns: 1fr;
+  }
+
+  .reservaTopBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .breadcrumbs {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .mapCtlBtn {

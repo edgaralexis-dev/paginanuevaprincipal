@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { CircleHelp } from 'lucide-react';
+import logoSrc from '../../assets/LogoPrimetix.svg';
 import { ReactSvgPanZoomLoader, SvgLoaderSelectElement } from 'react-svg-pan-zoom-loader';
 import { UncontrolledReactSVGPanZoom } from 'react-svg-pan-zoom';
 import {
@@ -7,10 +9,13 @@ import {
   getEventDataById,
   getEventDetailById,
   getInteractiveSvgSourceForBooking,
+  isCompraRapidaFlujoEvento,
   isSvgUrl,
 } from '../../services/events';
 import { getSeatPieMap, getSeatsMap, type SeatMap, type SeatMapPie } from '../../services/seats';
 import styles from './reserva.module.css';
+
+const MAX_TICKETS_PER_PERSON = 6;
 
 export default function ReservaBridge() {
   const { eventName, eventArtist, eventId } = useParams();
@@ -25,6 +30,10 @@ export default function ReservaBridge() {
   const [eventDate, setEventDate] = useState<string>('');
   const [spotifyUrl, setSpotifyUrl] = useState<string>('');
   const [eventTipo, setEventTipo] = useState<string>('');
+  const [eventGenero, setEventGenero] = useState<string>('');
+  const [localityFilterTab, setLocalityFilterTab] = useState<string>('ALL');
+  const [mainStageView, setMainStageView] = useState<'mapa' | 'lista'>('mapa');
+  const [compraRapidaFlujo, setCompraRapidaFlujo] = useState(false);
   const [width, setWidth] = useState(1);
   const [height, setHeight] = useState(1);
   const [isSvgLoaded, setIsSvgLoaded] = useState(false);
@@ -46,6 +55,7 @@ export default function ReservaBridge() {
   const [secondsLeft, setSecondsLeft] = useState(10 * 60);
   const Viewer = useRef<UncontrolledReactSVGPanZoom | null>(null);
   const refDiv = useRef<HTMLDivElement | null>(null);
+  const zoneTabsRef = useRef<HTMLDivElement | null>(null);
 
   const nombre = safeDecode(eventName) || 'Evento';
   const artista = safeDecode(eventArtist) || '—';
@@ -94,6 +104,7 @@ export default function ReservaBridge() {
           setEventLocation(eventData.ubicacion || '');
           setEventDate(eventData.fechaHoraInicio || '');
           setSpotifyUrl((eventData.spotify || '').trim());
+          if (eventData.genero?.trim()) setEventGenero(eventData.genero.trim());
         }
 
         const eventDetail = await getEventDetailById(eventIdNumber);
@@ -107,6 +118,9 @@ export default function ReservaBridge() {
           setEventInteractiveSvgSrc(svgSrc);
           if (detailSpotify) setSpotifyUrl(detailSpotify);
           setEventTipo(eventDetail.tipoEvento || '');
+          const g = eventDetail.genero?.trim();
+          if (g) setEventGenero(g);
+          setCompraRapidaFlujo(isCompraRapidaFlujoEvento(eventDetail));
         }
       } catch {
         if (!cancelled) setError('No se pudo cargar el mapa y valores de localidades.');
@@ -245,6 +259,104 @@ export default function ReservaBridge() {
     return [...rows.values()].sort((a, b) => a.price - b.price);
   }, [pieSeats, seats]);
 
+  const filteredLocalityRows = useMemo(() => {
+    if (localityFilterTab === 'ALL') return localityRows;
+    return localityRows.filter((r) => r.name === localityFilterTab);
+  }, [localityRows, localityFilterTab]);
+
+  const zoneTabs = useMemo(() => {
+    const names = localityRows.map((r) => r.name);
+    return ['ALL', ...names] as const;
+  }, [localityRows]);
+
+  const [zoneTabsOverflow, setZoneTabsOverflow] = useState(false);
+  const [zoneTabsScrollEdge, setZoneTabsScrollEdge] = useState({ start: true, end: true });
+
+  const updateZoneTabsScrollState = useCallback(() => {
+    const el = zoneTabsRef.current;
+    if (!el || localityRows.length === 0) {
+      setZoneTabsOverflow(false);
+      setZoneTabsScrollEdge({ start: true, end: true });
+      return;
+    }
+    const overflow = el.scrollWidth > el.clientWidth + 2;
+    setZoneTabsOverflow(overflow);
+    if (!overflow) {
+      setZoneTabsScrollEdge({ start: true, end: true });
+      return;
+    }
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    setZoneTabsScrollEdge({
+      start: el.scrollLeft <= 1,
+      end: el.scrollLeft >= maxScroll - 1,
+    });
+  }, [localityRows.length]);
+
+  useLayoutEffect(() => {
+    const el = zoneTabsRef.current;
+    if (!el || localityRows.length === 0) return;
+    updateZoneTabsScrollState();
+    const ro = new ResizeObserver(() => updateZoneTabsScrollState());
+    ro.observe(el);
+    el.addEventListener('scroll', updateZoneTabsScrollState, { passive: true });
+    window.addEventListener('resize', updateZoneTabsScrollState);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('scroll', updateZoneTabsScrollState);
+      window.removeEventListener('resize', updateZoneTabsScrollState);
+    };
+  }, [localityRows.length, zoneTabs.length, updateZoneTabsScrollState]);
+
+  const scrollZoneTabs = useCallback(
+    (dir: -1 | 1) => {
+      const el = zoneTabsRef.current;
+      if (!el) return;
+      el.scrollBy({ left: dir * 160, behavior: 'smooth' });
+      window.setTimeout(updateZoneTabsScrollState, 320);
+    },
+    [updateZoneTabsScrollState],
+  );
+
+  /** Rueda del ratón → scroll horizontal (Windows suele usar delta en “líneas”; Mayús+rueda = horizontal). */
+  useEffect(() => {
+    const el = zoneTabsRef.current;
+    if (!el || localityRows.length === 0) return;
+    const lineMul = 48;
+    const applyDeltaMode = (v: number, mode: number) => {
+      if (mode === WheelEvent.DOM_DELTA_LINE) return v * lineMul;
+      if (mode === WheelEvent.DOM_DELTA_PAGE) return v * (el.clientHeight || 320);
+      return v;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth + 1) return;
+      let delta = 0;
+      if (e.shiftKey) {
+        const primary = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        delta = applyDeltaMode(primary, e.deltaMode);
+      } else {
+        const dy = e.deltaY;
+        const dx = e.deltaX;
+        if (Math.abs(dx) >= Math.abs(dy)) return;
+        delta = applyDeltaMode(dy, e.deltaMode);
+      }
+      if (Math.abs(delta) < 0.5) return;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (delta > 0 && el.scrollLeft >= maxScroll - 1) return;
+      if (delta < 0 && el.scrollLeft <= 0) return;
+      el.scrollLeft = Math.max(0, Math.min(maxScroll, el.scrollLeft + delta));
+      e.preventDefault();
+      updateZoneTabsScrollState();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [localityRows.length, zoneTabs.length, updateZoneTabsScrollState]);
+
+  useEffect(() => {
+    if (localityFilterTab !== 'ALL' && localityRows.some((r) => r.name === localityFilterTab)) {
+      setSelectedLocality(localityFilterTab);
+    }
+  }, [localityFilterTab, localityRows]);
+
   useEffect(() => {
     if (!selectedLocality && localityRows.length > 0) {
       const firstAvailable = localityRows.find((x) => x.available > 0);
@@ -332,7 +444,8 @@ export default function ReservaBridge() {
   }, [seats]);
 
   const changeQty = (name: string, next: number, max: number) => {
-    const clamped = Math.max(0, Math.min(next, Math.max(0, max)));
+    const effMax = Math.min(Math.max(0, max), MAX_TICKETS_PER_PERSON);
+    const clamped = Math.max(0, Math.min(next, effMax));
     setSelectedQtyByLocality((prev) => ({ ...prev, [name]: clamped }));
   };
 
@@ -377,6 +490,11 @@ export default function ReservaBridge() {
     Viewer.current.zoom(pointX, pointY, 0.9);
   };
 
+  const resaltarSoloLocalidadMesaSilla =
+    compraRapidaFlujo &&
+    Boolean(selectedLocality) &&
+    localityEsMesaOSilla(selectedLocality);
+
   useEffect(() => {
     if (!canUsePanZoom || !isSvgLoaded) return;
     const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
@@ -387,14 +505,100 @@ export default function ReservaBridge() {
       if (seatCode == null) return;
       const seat = seatByCode.get(seatCode);
       if (!seat) return;
+      const loc = (seat.nombreLocalidad || seat.nombreSector || '').trim();
       const blocked = ['AR', 'VR', 'TI'].includes((seat.estadoAsiento || '').toUpperCase());
       (el as HTMLElement).style.cursor = blocked ? 'not-allowed' : 'pointer';
       const isActive = activeSeatCode === seatCode;
       (el as HTMLElement).style.stroke = isActive ? '#3dd87a' : 'none';
       (el as HTMLElement).style.strokeWidth = isActive ? '2' : '0';
-      (el as HTMLElement).style.opacity = blocked ? '0.28' : '1';
+
+      let opacity = blocked ? 0.28 : 1;
+      if (resaltarSoloLocalidadMesaSilla && !blocked && loc !== selectedLocality) {
+        opacity = 0.32;
+      }
+      (el as HTMLElement).style.opacity = String(opacity);
     });
-  }, [activeSeatCode, canUsePanZoom, isSvgLoaded, seatByCode]);
+  }, [
+    activeSeatCode,
+    canUsePanZoom,
+    compraRapidaFlujo,
+    isSvgLoaded,
+    resaltarSoloLocalidadMesaSilla,
+    seatByCode,
+    selectedLocality,
+  ]);
+
+  /** Puntos de color por zona en el SVG (centroide de asientos del API en el mapa). */
+  useEffect(() => {
+    if (!canUsePanZoom || !isSvgLoaded || localityRows.length === 0 || seats.length === 0) return;
+
+    let cancelled = false;
+    const paint = () => {
+      if (cancelled) return;
+      const svg = document.getElementById('tooltip-id') as SVGSVGElement | null;
+      if (!svg) return;
+      svg.getElementById('primetix-zone-markers')?.remove();
+
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('id', 'primetix-zone-markers');
+      group.setAttribute('pointer-events', 'none');
+
+      for (const row of localityRows) {
+        const fill = hexToCssMarker(row.color);
+        const codes = seats
+          .filter((s) => (s.nombreLocalidad || s.nombreSector || '').trim() === row.name)
+          .map((s) => Number(s.codigo))
+          .filter((c) => Number.isFinite(c));
+        const sample = codes.length > 100 ? codes.slice(0, 100) : codes;
+
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        let found = 0;
+
+        for (const code of sample) {
+          const el = findSeatSvgElementByCode(svg, code);
+          if (!el) continue;
+          try {
+            const b = el.getBBox();
+            if (!Number.isFinite(b.width) || !Number.isFinite(b.height) || b.width <= 0 || b.height <= 0) continue;
+            minX = Math.min(minX, b.x);
+            minY = Math.min(minY, b.y);
+            maxX = Math.max(maxX, b.x + b.width);
+            maxY = Math.max(maxY, b.y + b.height);
+            found += 1;
+          } catch {
+            /* getBBox puede fallar si el nodo no está pintado */
+          }
+        }
+
+        if (found === 0) continue;
+
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const selected = row.name === selectedLocality;
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', String(cx));
+        circle.setAttribute('cy', String(cy));
+        circle.setAttribute('r', selected ? '18' : '14');
+        circle.setAttribute('fill', fill);
+        circle.setAttribute('fill-opacity', selected ? '0.95' : '0.72');
+        circle.setAttribute('stroke', '#ffffff');
+        circle.setAttribute('stroke-width', selected ? '3' : '2');
+        group.appendChild(circle);
+      }
+
+      svg.appendChild(group);
+    };
+
+    const t = window.setTimeout(paint, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+      document.getElementById('primetix-zone-markers')?.remove();
+    };
+  }, [canUsePanZoom, isSvgLoaded, localityRows, seats, selectedLocality]);
 
   const onSvgMapClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
@@ -477,8 +681,72 @@ export default function ReservaBridge() {
     };
   };
 
+  const toCssHex = (hex?: string) => {
+    const t = (hex || '').trim();
+    if (!t) return '#3dd87a';
+    return t.startsWith('#') ? t : `#${t}`;
+  };
+
+  const heroWhenWhere = formatReservaHeroLine(eventDate, eventLocation);
+
+  const zoneCardAccent = (row: (typeof localityRows)[number]) => toCssHex(row.color);
+
+  const renderZoneCard = (row: (typeof localityRows)[number]) => {
+    const q = Number(selectedQtyByLocality[row.name] || 0);
+    return (
+      <div
+        key={`zone-${row.name}`}
+        role="button"
+        tabIndex={0}
+        className={`${styles.zoneCard} ${selectedLocality === row.name ? styles.zoneCardActive : ''}`}
+        style={{ borderLeftColor: zoneCardAccent(row) }}
+        onClick={() => setSelectedLocality(row.name)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setSelectedLocality(row.name);
+          }
+        }}
+      >
+        <div className={styles.zoneCardTop}>
+          <span className={styles.zoneCardName}>{row.name.replaceAll('_', ' ')}</span>
+          {q > 0 ? <span className={styles.zoneCardBadge}>{q}</span> : null}
+        </div>
+        <div className={styles.zoneCardMeta}>
+          <span className={row.available > 0 ? styles.zoneCardAvail : styles.zoneCardSold}>
+            {row.available > 0 ? `${row.available} disponibles` : 'Agotado'}
+          </span>
+          <strong className={styles.zoneCardPrice}>
+            Q {row.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </strong>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.page}>
+      <header className={styles.reservaTopBar}>
+        <Link to="/" className={styles.reservaLogo}>
+          <img src={logoSrc} alt="Primetix" width={120} height={32} />
+        </Link>
+        <nav className={styles.breadcrumbs} aria-label="Ruta">
+          <Link to="/eventos">Eventos</Link>
+          {eventGenero ? (
+            <>
+              <span className={styles.crumbSep}>/</span>
+              <span>{eventGenero}</span>
+            </>
+          ) : null}
+          <span className={styles.crumbSep}>/</span>
+          <span className={styles.crumbCurrent}>{nombre}</span>
+        </nav>
+        <Link to="/FAQs/general" className={styles.helpLink}>
+          <CircleHelp size={18} strokeWidth={2} aria-hidden />
+          Ayuda
+        </Link>
+      </header>
+
       <div className={styles.inner}>
         <Link to="/eventos" className={styles.back}>
           ← Ver eventos
@@ -490,23 +758,16 @@ export default function ReservaBridge() {
             <div className={styles.grad} />
           </div>
           <div className={styles.body}>
+            <p className={styles.eventCategory}>
+              <span className={styles.eventCategoryDot} aria-hidden />
+              {eventGenero ? `${eventGenero.toUpperCase()} · ` : null}
+              {artista}
+            </p>
             <h1 className={styles.title}>{nombre}</h1>
-            <p className={styles.meta}>
-              <strong>Artista</strong>: {artista}
-              <br />
-              <strong>Código</strong>: {codigo}
-              {eventLocation ? (
-                <>
-                  <br />
-                  <strong>Ubicación</strong>: {eventLocation}
-                </>
-              ) : null}
-              {eventDate ? (
-                <>
-                  <br />
-                  <strong>Fecha</strong>: {formatDate(eventDate)}
-                </>
-              ) : null}
+            <p className={styles.heroLine}>{heroWhenWhere}</p>
+            <p className={styles.metaMuted}>
+              Código {codigo}
+              {eventLocation && !heroWhenWhere.includes(eventLocation) ? ` · ${eventLocation}` : null}
             </p>
 
             {spotifyUrl ? (
@@ -539,12 +800,92 @@ export default function ReservaBridge() {
             {error ? <div className={styles.error}>{error}</div> : null}
 
             {!loading && localityRows.length > 0 ? (
-              <div className={styles.localityLayout}>
+              <div
+                className={`${styles.localityLayout} ${mainStageView === 'lista' ? styles.localityLayoutLista : ''}`}
+              >
                 <div className={styles.mapPanel}>
+                  {localityRows.length > 0 ? (
+                    <div className={styles.mapLegend} aria-label="Leyenda del mapa">
+                      {compraRapidaFlujo ? (
+                        <>
+                          {selectedLocality && localityEsMesaOSilla(selectedLocality) ? (
+                            <span className={styles.legendItem}>
+                              <span
+                                className={styles.legendSwatch}
+                                style={{
+                                  background: toCssHex(
+                                    localityRows.find((r) => r.name === selectedLocality)?.color,
+                                  ),
+                                }}
+                                aria-hidden
+                              />
+                              <strong>{selectedLocality.replaceAll('_', ' ')}</strong>
+                            </span>
+                          ) : (
+                            <span className={styles.legendHint}>
+                              Elige una zona de <strong>mesas</strong> o <strong>sillas</strong> para ver solo su
+                              color en el mapa.
+                            </span>
+                          )}
+                          <span className={styles.legendItem}>
+                            <span className={`${styles.legendSwatch} ${styles.legendSoldOut}`} aria-hidden />
+                            Agotado
+                          </span>
+                          <span className={styles.legendItem}>
+                            <span className={`${styles.legendSwatch} ${styles.legendSelected}`} aria-hidden />
+                            Seleccionado
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {localityRows.map((row) => (
+                            <span key={`leg-${row.name}`} className={styles.legendItem}>
+                              <span
+                                className={styles.legendSwatch}
+                                style={{ background: toCssHex(row.color) }}
+                                aria-hidden
+                              />
+                              {row.name.replaceAll('_', ' ')}
+                            </span>
+                          ))}
+                          <span className={styles.legendItem}>
+                            <span className={`${styles.legendSwatch} ${styles.legendSoldOut}`} aria-hidden />
+                            Agotado
+                          </span>
+                          <span className={styles.legendItem}>
+                            <span className={`${styles.legendSwatch} ${styles.legendSelected}`} aria-hidden />
+                            Seleccionado
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+
                   <div
                     className={`${styles.mapVisualShell} ${isMapaPie ? styles.mapAspectMapaPie : styles.mapAspectBooking}`}
                   >
-                    {canUsePanZoom ? (
+                    <div className={styles.mapStageToolbar}>
+                      <div className={styles.mapViewToggle} role="group" aria-label="Vista del escenario">
+                        <button
+                          type="button"
+                          className={mainStageView === 'mapa' ? styles.mapViewBtnOn : styles.mapViewBtn}
+                          onClick={() => setMainStageView('mapa')}
+                        >
+                          Mapa
+                        </button>
+                        <button
+                          type="button"
+                          className={mainStageView === 'lista' ? styles.mapViewBtnOn : styles.mapViewBtn}
+                          onClick={() => setMainStageView('lista')}
+                        >
+                          Lista
+                        </button>
+                      </div>
+                    </div>
+
+                    {mainStageView === 'lista' ? (
+                      <div className={styles.listaStage}>{filteredLocalityRows.map((row) => renderZoneCard(row))}</div>
+                    ) : canUsePanZoom ? (
                       <ReactSvgPanZoomLoader
                         className={styles.mapLoaderFill}
                         key={mapInteractiveSrc}
@@ -591,123 +932,217 @@ export default function ReservaBridge() {
                         <div className={styles.mapVisualPlaceholder}>Mapa del evento</div>
                       </div>
                     )}
-                    <div className={styles.mapOverlayUi}>
-                      <div className={styles.mapControls}>
-                        <button
-                          type="button"
-                          className={`${styles.mapCtlBtn} ${styles.mapCtlHome}`}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleHome();
-                          }}
-                          aria-label="Reset"
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden>
-                            <path
-                              d="M4 11.5L12 5l8 6.5M7 10.5V19h10v-8.5"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <div className={styles.mapCtlStack}>
-                          <button
-                            type="button"
-                            className={styles.mapCtlBtn}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleZoomIn();
-                            }}
-                            aria-label="Acercar"
+
+                    {mainStageView === 'mapa' ? (
+                      <>
+                        <div className={styles.mapOverlayUi}>
+                          <div className={styles.mapControls}>
+                            <button
+                              type="button"
+                              className={`${styles.mapCtlBtn} ${styles.mapCtlHome}`}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleHome();
+                              }}
+                              aria-label="Reset"
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden>
+                                <path
+                                  d="M4 11.5L12 5l8 6.5M7 10.5V19h10v-8.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                            <div className={styles.mapCtlStack}>
+                              <button
+                                type="button"
+                                className={styles.mapCtlBtn}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleZoomIn();
+                                }}
+                                aria-label="Acercar"
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.mapCtlBtn}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleZoomOut();
+                                }}
+                                aria-label="Alejar"
+                              >
+                                -
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.mapVisualLabel}>Mapa del evento</div>
+                        {seatTooltip ? (
+                          <div
+                            className={styles.seatTooltip}
+                            style={{ left: `${seatTooltip.x}px`, top: `${seatTooltip.y}px` }}
                           >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.mapCtlBtn}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleZoomOut();
-                            }}
-                            aria-label="Alejar"
-                          >
-                            -
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={styles.mapVisualLabel}>Mapa del evento</div>
-                    {seatTooltip ? (
-                      <div
-                        className={styles.seatTooltip}
-                        style={{ left: `${seatTooltip.x}px`, top: `${seatTooltip.y}px` }}
-                      >
-                        <div className={styles.seatTooltipTitle}>{seatTooltip.title}</div>
-                        <div className={styles.seatTooltipRow}>
-                          <span>{seatTooltip.seatName}</span>
-                        </div>
-                        <div className={styles.seatTooltipPrice}>
-                          Q {seatTooltip.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className={styles.seatTooltipStatus}>{seatTooltip.status}</div>
-                      </div>
+                            <div className={styles.seatTooltipTitle}>{seatTooltip.title}</div>
+                            <div className={styles.seatTooltipRow}>
+                              <span>{seatTooltip.seatName}</span>
+                            </div>
+                            <div className={styles.seatTooltipPrice}>
+                              Q {seatTooltip.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                            </div>
+                            <div className={styles.seatTooltipStatus}>{seatTooltip.status}</div>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </div>
 
                 <div className={styles.pricePanel}>
-                  <div className={styles.timeHeader}>
-                    Tiempo restante: {formatSecondsMMSS(secondsLeft)} min
+                  <div
+                    className={styles.zoneTabsWrap}
+                    data-overflow={zoneTabsOverflow ? 'true' : 'false'}
+                  >
+                    <button
+                      type="button"
+                      className={styles.zoneTabChevron}
+                      aria-label="Ver zonas anteriores"
+                      disabled={!zoneTabsOverflow || zoneTabsScrollEdge.start}
+                      onClick={() => scrollZoneTabs(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div
+                      ref={zoneTabsRef}
+                      className={styles.zoneTabs}
+                      role="tablist"
+                      aria-label="Filtrar por zona"
+                      onScroll={updateZoneTabsScrollState}
+                    >
+                      {zoneTabs.map((tab) => {
+                        const label = tab === 'ALL' ? 'Todas' : tab.replaceAll('_', ' ');
+                        const isOn = localityFilterTab === tab;
+                        return (
+                          <button
+                            key={tab}
+                            type="button"
+                            role="tab"
+                            aria-selected={isOn}
+                            className={isOn ? styles.zoneTabOn : styles.zoneTab}
+                            onClick={() => setLocalityFilterTab(tab)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.zoneTabChevron}
+                      aria-label="Ver más zonas"
+                      disabled={!zoneTabsOverflow || zoneTabsScrollEdge.end}
+                      onClick={() => scrollZoneTabs(1)}
+                    >
+                      ›
+                    </button>
                   </div>
-                  <div className={styles.selectedHeader}>Tickets seleccionados</div>
-                  <div className={styles.priceRowsScroll}>
-                    {localityRows.map((row) => (
-                      <div
-                        key={`price-${row.name}`}
-                        className={`${styles.priceRow} ${selectedLocality === row.name ? styles.priceRowActive : ''}`}
-                        onClick={() => setSelectedLocality(row.name)}
-                      >
-                        <span>{row.name.replaceAll('_', ' ')}</span>
-                        <span>{row.available > 0 ? `${row.available} disp.` : 'Agotado'}</span>
-                        <strong>Q {row.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
-                        <div className={styles.qtyControls}>
-                          <button
-                            type="button"
-                            className={styles.qtyBtn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) - 1, row.available);
-                            }}
-                            disabled={Number(selectedQtyByLocality[row.name] || 0) <= 0}
-                          >
-                            -
-                          </button>
-                          <span className={styles.qtyValue}>{Number(selectedQtyByLocality[row.name] || 0)}</span>
-                          <button
-                            type="button"
-                            className={styles.qtyBtn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) + 1, row.available);
-                            }}
-                            disabled={row.available <= Number(selectedQtyByLocality[row.name] || 0)}
-                          >
-                            +
-                          </button>
-                        </div>
+                  <div className={styles.priceRowsScroll}>{filteredLocalityRows.map((row) => renderZoneCard(row))}</div>
+
+                  {selectedRow ? (
+                    <div className={styles.qtyGlobal}>
+                      <div className={styles.qtyGlobalTitle}>Cantidad de boletos</div>
+                      <div className={styles.qtyGlobalRow}>
+                        <button
+                          type="button"
+                          className={styles.qtyGlobalBtn}
+                          onClick={() =>
+                            changeQty(
+                              selectedRow.name,
+                              Number(selectedQtyByLocality[selectedRow.name] || 0) - 1,
+                              selectedRow.available,
+                            )
+                          }
+                          disabled={Number(selectedQtyByLocality[selectedRow.name] || 0) <= 0}
+                          aria-label="Menos"
+                        >
+                          −
+                        </button>
+                        <span className={styles.qtyGlobalValue}>
+                          {Number(selectedQtyByLocality[selectedRow.name] || 0)}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.qtyGlobalBtn}
+                          onClick={() =>
+                            changeQty(
+                              selectedRow.name,
+                              Number(selectedQtyByLocality[selectedRow.name] || 0) + 1,
+                              selectedRow.available,
+                            )
+                          }
+                          disabled={
+                            selectedRow.available <= Number(selectedQtyByLocality[selectedRow.name] || 0) ||
+                            Number(selectedQtyByLocality[selectedRow.name] || 0) >= MAX_TICKETS_PER_PERSON
+                          }
+                          aria-label="Más"
+                        >
+                          +
+                        </button>
                       </div>
-                    ))}
+                      <p className={styles.qtyGlobalNote}>
+                        máx. {Math.min(MAX_TICKETS_PER_PERSON, selectedRow.available)} por persona ·{' '}
+                        {selectedRow.name.replaceAll('_', ' ')}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className={styles.selectedSeatsBox}>
+                    <div className={styles.selectedSeatsTitle}>Asientos seleccionados</div>
+                    {totalTickets <= 0 ? (
+                      <p className={styles.selectedSeatsPlaceholder}>
+                        Selecciona asientos en el mapa o cantidades por zona.
+                      </p>
+                    ) : (
+                      <ul className={styles.selectedSeatsList}>
+                        {localityRows
+                          .filter((r) => Number(selectedQtyByLocality[r.name] || 0) > 0)
+                          .map((r) => (
+                            <li key={`sel-${r.name}`}>
+                              <span>{r.name.replaceAll('_', ' ')}</span>
+                              <span>
+                                × {selectedQtyByLocality[r.name]} · Q{' '}
+                                {(r.price * Number(selectedQtyByLocality[r.name] || 0)).toLocaleString('es-GT', {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                    {activeSeatCode && seatByCode.get(activeSeatCode) ? (
+                      <p className={styles.lastSeatHint}>
+                        Último en mapa: {seatByCode.get(activeSeatCode)?.nombre || `Código ${activeSeatCode}`}
+                      </p>
+                    ) : null}
                   </div>
+
                   <div className={styles.checkoutFooter}>
                     <div className={styles.checkoutTotal}>
                       <span>Total</span>
                       <strong>Q {totalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div className={styles.expiryBar} role="status" aria-live="polite">
+                      <span className={styles.expiryLabel}>Tu selección expira en</span>
+                      <span className={styles.expiryTime}>{formatSecondsMMSS(secondsLeft)}</span>
                     </div>
                     <div className={styles.checkoutActions}>
                       <Link
@@ -729,12 +1164,62 @@ export default function ReservaBridge() {
             {!loading && !error && localityRows.length === 0 ? (
               <div className={styles.hint}>No se encontraron localidades disponibles para este evento.</div>
             ) : null}
-
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function findSeatSvgElementByCode(svg: SVGSVGElement, code: number): SVGGraphicsElement | null {
+  const only = String(Math.floor(code));
+  const candidates = [`a_${only}`, `a${only}`, `c_${only}`, `c${only}`, `svg_${only}`, `svg${only}`];
+  for (const id of candidates) {
+    try {
+      const el = svg.querySelector(`#${CSS.escape(id)}`);
+      if (el instanceof SVGGraphicsElement) return el;
+    } catch {
+      /* id inválido para selector */
+    }
+  }
+  return null;
+}
+
+function hexToCssMarker(hex?: string): string {
+  const t = (hex || '').trim();
+  if (!t) return '#3dd87a';
+  return t.startsWith('#') ? t : `#${t}`;
+}
+
+/** En compra rápida, colores por zona aplican a localidades cuyo nombre indica mesa o silla (datos reales del API). */
+function localityEsMesaOSilla(name: string): boolean {
+  const n = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+  return n.includes('MESA') || n.includes('SILLA');
+}
+
+function formatReservaHeroLine(iso: string, ubicacion: string): string {
+  if (!iso) return (ubicacion || '').trim() || '—';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return [iso, ubicacion].filter(Boolean).join(' · ');
+    const datePart = new Intl.DateTimeFormat('es-GT', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(d);
+    const timePart = new Intl.DateTimeFormat('es-GT', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+    const u = (ubicacion || '').trim();
+    return [datePart, `${timePart} hrs`, u].filter(Boolean).join(' · ');
+  } catch {
+    return ubicacion || iso;
+  }
 }
 
 function safeDecode(v: string | undefined): string {
@@ -743,18 +1228,6 @@ function safeDecode(v: string | undefined): string {
     return decodeURIComponent(v);
   } catch {
     return v;
-  }
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat('es-GT', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(d);
-  } catch {
-    return iso;
   }
 }
 
