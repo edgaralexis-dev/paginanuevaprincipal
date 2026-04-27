@@ -7,7 +7,7 @@
 }
 
 .inner {
-  max-width: 920px;
+  max-width: 1560px;
   margin: 0 auto;
 }
 
@@ -115,5 +115,419 @@
   color: rgba(245, 242, 237, 0.6);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.error {
+  margin-top: 12px;
+  color: #ff7f7f;
+  font-size: 13px;
+}
+
+.selectionBar {
+  margin-top: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.selectionBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #c8c8c8;
+}
+
+.selectionBar select {
+  background: #101010;
+  color: #f5f2ed;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.selectionPrice {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3dd87a;
+}
+
+.localityLayout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(340px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.mapPanel {
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 10px;
+  background: #111;
+  display: grid;
+  gap: 8px;
+}
+
+.mapVisual {
+  position: relative;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  overflow: hidden;
+  height: min(76vh, 980px);
+  min-height: 520px;
+  background: #ffffff;
+}
+
+.mapViewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  cursor: default;
+}
+
+.mapViewportDragging {
+  cursor: grabbing;
+}
+
+.mapZoomLayer {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
+}
+
+.svgMapHost {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+.svgMapHost svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.svgMapHost [id] {
+  cursor: pointer;
+}
+
+.mapControls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: grid;
+  gap: 8px;
+}
+
+.mapCtlBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  border: 1px solid #9aa0a6;
+  background: #efefef;
+  color: #099ea8;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.mapCtlHome svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mapCtlStack {
+  border: 1px solid #9aa0a6;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #efefef;
+}
+
+.mapCtlStack .mapCtlBtn {
+  border: none;
+  border-bottom: 1px solid #9aa0a6;
+  border-radius: 0;
+}
+
+.mapCtlStack .mapCtlBtn:last-child {
+  border-bottom: none;
+}
+
+.mapVisual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mapVisualGrad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.68) 100%);
+  pointer-events: none;
+}
+
+.mapVisualLabel {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f5f2ed;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.seatTooltip {
+  position: absolute;
+  z-index: 5;
+  min-width: 190px;
+  background: #ffffff;
+  color: #121212;
+  border: 1px solid #d9d9d9;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+  pointer-events: none;
+}
+
+.seatTooltipTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0b8f8f;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.seatTooltipRow {
+  font-size: 12px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.seatTooltipPrice {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.seatTooltipStatus {
+  font-size: 12px;
+  color: #666;
+}
+
+.mapVisualPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #777;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spotifyWrap {
+  margin-top: 14px;
+  border: 1px solid #252525;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #121212;
+}
+
+.mapZone {
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #161616;
+  color: #f5f2ed;
+  padding: 10px 12px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mapZone:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mapZoneActive {
+  border-color: #3dd87a;
+  box-shadow: 0 0 0 1px rgba(61, 216, 122, 0.25) inset;
+}
+
+.mapDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.pricePanel {
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  background: #111;
+  overflow: hidden;
+  position: sticky;
+  top: 12px;
+  max-height: min(76vh, 980px);
+  display: flex;
+  flex-direction: column;
+}
+
+.timeHeader {
+  padding: 12px 12px 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f3552;
+  background: #f3f3f3;
+}
+
+.selectedHeader {
+  padding: 0 12px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f3552;
+  background: #f3f3f3;
+}
+
+.priceRow {
+  width: 100%;
+  background: #141414;
+  color: #f5f2ed;
+  border-bottom: 1px solid #222;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.priceRow:last-child {
+  border-bottom: none;
+}
+
+.priceRow strong {
+  color: #3dd87a;
+}
+
+.priceRowActive {
+  background: #1a1f1b;
+}
+
+.qtyControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qtyBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid #2a2a2a;
+  background: #121212;
+  color: #f5f2ed;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qtyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qtyValue {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.checkoutFooter {
+  border-top: 1px solid #252525;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  background: #101010;
+  margin-top: auto;
+}
+
+.checkoutTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.checkoutTotal strong {
+  color: #3dd87a;
+  font-size: 15px;
+}
+
+.checkoutActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.checkoutActions .primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payBtn {
+  width: 100%;
+  text-decoration: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3dd87a 0%, #27b965 100%);
+  color: #07140d;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+  border: 1px solid rgba(61, 216, 122, 0.45);
+  box-shadow: 0 6px 16px rgba(39, 185, 101, 0.25);
+}
+
+.payBtn:hover {
+  filter: brightness(1.02);
+}
+
+.payBtn[aria-disabled='true'] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .localityLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .mapVisual {
+    height: 420px;
+    min-height: 420px;
+  }
+
+  .pricePanel {
+    position: static;
+    max-height: unset;
+  }
 }
 

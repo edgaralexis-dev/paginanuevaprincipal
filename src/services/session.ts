@@ -39,6 +39,17 @@ export async function generatePassword(email?: string, numeroCelular?: string): 
   return ok ? data : {};
 }
 
+/** Lógica legacy: valida correo por token en URL. */
+export async function validateEmailByToken(correoToken: string): Promise<boolean> {
+  const correo = normalizeEmail(correoToken || '');
+  if (!correo) return false;
+  const { ok } = await apiPostJsonAnyStatus<Record<string, unknown>>(
+    `/securetixapi/api/usuario/ValidarCorreo/${encodeURIComponent(correo)}`,
+    {},
+  );
+  return ok;
+}
+
 export interface LoginResult {
   success: boolean;
   user?: User;

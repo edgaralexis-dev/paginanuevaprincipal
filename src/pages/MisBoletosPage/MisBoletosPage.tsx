@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Bell, Download, Facebook, LogOut, Search, Shield, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -84,12 +84,35 @@ function formatDate(iso: string) {
   }
 }
 
+function formatDateTime(iso: string) {
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat('es-GT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
+function parseDateMs(iso: string) {
+  const t = Date.parse(iso);
+  if (!Number.isNaN(t)) return t;
+  return 0;
+}
+
 export default function MisBoletosPage() {
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [allEvents, setAllEvents] = useState<TicketEventos[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tickets' | 'pasados' | 'transferencias' | 'historial' | 'perfil'>('tickets');
-  const [transferStep, setTransferStep] = useState<1 | 2 | 3>(1);
   const [settingsSection, setSettingsSection] = useState<'info' | 'notif' | 'security'>('info');
   const [busyTicket, setBusyTicket] = useState<number | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -123,6 +146,16 @@ export default function MisBoletosPage() {
     image: string;
     locality: string;
   } | null>(null);
+
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search);
+    const tab = qs.get('tab');
+    if (tab === 'perfil') setActiveTab('perfil');
+    if (tab === 'historial') setActiveTab('historial');
+    if (tab === 'transferencias') setActiveTab('transferencias');
+    if (tab === 'pasados') setActiveTab('pasados');
+    if (tab === 'tickets') setActiveTab('tickets');
+  }, [location.search]);
 
   const loadTickets = async () => {
     if (!user?.codigo || !user?.tokenPrivado) return;
@@ -235,6 +268,19 @@ export default function MisBoletosPage() {
     return filterPastTickets({ eventos: allEvents });
   }, [allEvents]);
 
+  const transferEvents = useMemo(() => {
+    if (!allEvents) return null;
+    const out: TicketEventos[] = [];
+    for (const ev of allEvents) {
+      const filtered = (ev.tickets ?? []).filter((t) => {
+        const raw = (t.estado || '').toLowerCase();
+        return raw === 'tt' || raw.includes('transfer') || raw === 'tr' || raw.includes('reventa');
+      });
+      if (filtered.length > 0) out.push({ ...ev, tickets: filtered });
+    }
+    return out;
+  }, [allEvents]);
+
   const totalTickets = useMemo(
     () => (upcomingEvents ?? []).reduce((acc, ev) => acc + ev.tickets.length, 0),
     [upcomingEvents],
@@ -256,10 +302,84 @@ export default function MisBoletosPage() {
     return { pill: 'ACTIVE', title: 'Ticket Activo', subtitle: 'Codigo QR listo para ingreso' };
   };
 
+  const historyStatusMeta = (estado?: string) => {
+    const code = (estado || '').toUpperCase();
+    if (code === 'TT' || code === 'TR') {
+      return { label: 'Transferido', className: `${styles.statusPill} ${styles.statusTransfer}` };
+    }
+    if (code === 'TRP') {
+      return { label: 'Pendiente', className: `${styles.statusPill} ${styles.statusPending}` };
+    }
+    if (code === 'RC' || code === 'TRF') {
+      return { label: 'Cancelado', className: `${styles.statusPill} ${styles.statusCancel}` };
+    }
+    if (code === 'TE' || code === 'TI') {
+      return { label: 'Escaneado', className: `${styles.statusPill} ${styles.statusScanned}` };
+    }
+    return { label: 'Completado', className: `${styles.statusPill} ${styles.statusOk}` };
+  };
+
+  const timelineVisualMeta = (estado?: string, text?: string) => {
+    const code = (estado || '').toUpperCase();
+    const normalizedText = (text || '').toLowerCase();
+    if (code === 'TA') {
+      return { glyph: '🛒', markerClass: styles.timelineMarkerDefault };
+    }
+    if (code === 'TR' || code === 'RA') {
+      return { glyph: '🛍', markerClass: styles.timelineMarkerResale };
+    }
+    if (code === 'TT' || normalizedText.includes('transfer')) {
+      return { glyph: '↗', markerClass: styles.timelineMarkerTransfer };
+    }
+    if (code === 'TRP' || normalizedText.includes('pendiente')) {
+      return { glyph: '⏳', markerClass: styles.timelineMarkerPending };
+    }
+    if (code === 'RC' || code === 'TRF' || normalizedText.includes('cancel')) {
+      return { glyph: '✕', markerClass: styles.timelineMarkerCancel };
+    }
+    if (code === 'TE' || code === 'TI' || normalizedText.includes('escane')) {
+      return { glyph: '✓', markerClass: styles.timelineMarkerScanned };
+    }
+    if (code === 'TRE') {
+      return { glyph: '✓', markerClass: styles.timelineMarkerSuccess };
+    }
+    return { glyph: '🛒', markerClass: styles.timelineMarkerDefault };
+  };
+
+  const timelineRows = useMemo(() => {
+    const rows = timelineItems.map((item) => {
+      const rawDate =
+        (typeof item.fecha === 'string' && item.fecha) ||
+        (typeof (item as any).fechaAccion === 'string' && (item as any).fechaAccion) ||
+        (typeof (item as any).fechaRegistro === 'string' && (item as any).fechaRegistro) ||
+        '';
+      const text =
+        (typeof item.descripcion === 'string' && item.descripcion) ||
+        (typeof (item as any).accion === 'string' && (item as any).accion) ||
+        (typeof item.detalle === 'string' && item.detalle) ||
+        (typeof item.estado === 'string' && item.estado) ||
+        'Actualización de ticket';
+      const estado =
+        (typeof item.estado === 'string' && item.estado) ||
+        (typeof (item as any).codigoEstado === 'string' && (item as any).codigoEstado) ||
+        '';
+      return { rawDate, text, estado };
+    });
+    return rows.sort((a, b) => parseDateMs(a.rawDate) - parseDateMs(b.rawDate));
+  }, [timelineItems]);
+
   const renderTicketCard = (ev: TicketEventos, t: TicketTix, forcedEstado?: string) => {
     const s = statusVisual(forcedEstado ?? t.estado);
     const rawState = (forcedEstado ?? t.estado ?? '').toLowerCase();
-    const canTransfer = rawState === 'ta' || rawState.includes('activo');
+    const isInactive =
+      rawState === 'ti' ||
+      rawState.includes('inactivo') ||
+      rawState.includes('escane');
+    const isActive =
+      rawState === 'ta' ||
+      rawState === 'activo' ||
+      rawState.includes('ticket activo');
+    const canTransfer = isActive;
     const isTransferred = rawState === 'tt' || rawState.includes('transfer');
     const isResale = rawState === 'tr' || rawState.includes('reventa');
 
@@ -352,9 +472,15 @@ export default function MisBoletosPage() {
           <div className={styles.ticketPrice}>{t.precio != null ? `Q ${Number(t.precio).toLocaleString('es-GT')}` : '—'}</div>
         </div>
 
-        <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.qrOpen}>
-          Abrir ticket
-        </Link>
+        {isActive ? (
+          <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.qrOpen}>
+            Abrir ticket
+          </Link>
+        ) : (
+          <div className={styles.qrOpen} aria-disabled>
+            QR no disponible
+          </div>
+        )}
 
         <div className={styles.ticketActions}>
           <button
@@ -427,9 +553,15 @@ export default function MisBoletosPage() {
               {busyTicket === t.codigo ? 'Cancelando...' : 'Cancelar'}
             </button>
           ) : null}
-          <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.actionBtnPrimary}>
-            Ver ticket
-          </Link>
+          {isActive ? (
+            <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.actionBtnPrimary}>
+              Ver ticket
+            </Link>
+          ) : (
+            <button type="button" className={styles.actionBtnPrimary} disabled>
+              Ticket inactivo
+            </button>
+          )}
         </div>
       </article>
     );
@@ -542,65 +674,28 @@ export default function MisBoletosPage() {
         {activeTab === 'transferencias' ? (
           <>
             <div className={styles.head}>
-              <h1 className={styles.title}>Transferir Boleto</h1>
-              <p className={styles.muted}>Envia tus boletos de forma segura</p>
+              <h1 className={styles.title}>Transferencias</h1>
+              <p className={styles.muted}>Tickets en transferencia o reventa</p>
             </div>
-            <section className={styles.transferLayout}>
-              <aside className={styles.transferSide}>
-                <div className={styles.transferEventCard}>
-                  <div className={styles.transferPhoto}>EVENTO</div>
-                  <div className={styles.transferInfo}>
-                    <strong>{upcomingEvents?.[0]?.evento || 'Evento seleccionado'}</strong>
-                    <p>{upcomingEvents?.[0] ? formatDate(upcomingEvents[0].fechaEvento) : 'Sin fecha'}</p>
+            {transferEvents === null && !error ? <div className={styles.skeleton} /> : null}
+            {transferEvents && transferEvents.length === 0 ? (
+              <p className={styles.muted}>No tienes tickets en transferencia o reventa.</p>
+            ) : null}
+            {transferEvents?.map((ev) => (
+              <section className={styles.eventGroup} key={`transfer-${ev.codigoEvento}`}>
+                <div className={styles.eventGroupHead}>
+                  <div>
+                    <h2 className={styles.eventGroupName}>{ev.evento}</h2>
+                    <p className={styles.eventGroupDate}>
+                      {formatDate(ev.fechaEvento)} · {ev.ubicacionEvento || ev.artista}
+                    </p>
                   </div>
                 </div>
-                <div className={styles.securityNote}>
-                  Tu transferencia esta protegida. El destinatario debe aceptar el boleto.
+                <div className={styles.ticketsGrid}>
+                  {ev.tickets.map((t) => renderTicketCard(ev, t))}
                 </div>
-              </aside>
-
-              <div className={styles.transferMain}>
-                <div className={styles.stepsBar}>
-                  <div className={`${styles.stepItem} ${transferStep === 1 ? styles.stepActive : transferStep > 1 ? styles.stepDone : ''}`}>1. Destinatario</div>
-                  <div className={`${styles.stepItem} ${transferStep === 2 ? styles.stepActive : transferStep > 2 ? styles.stepDone : ''}`}>2. Boletos</div>
-                  <div className={`${styles.stepItem} ${transferStep === 3 ? styles.stepActive : ''}`}>3. Confirmar</div>
-                </div>
-
-                {transferStep === 1 ? (
-                  <div className={styles.stepCard}>
-                    <h3>¿A quien envias?</h3>
-                    <input className={styles.input} placeholder="correo@ejemplo.com" />
-                    <input className={styles.input} placeholder="Mensaje opcional" />
-                    <div className={styles.stepActions}>
-                      <button className={styles.btnAccent} onClick={() => setTransferStep(2)}>Continuar</button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {transferStep === 2 ? (
-                  <div className={styles.stepCard}>
-                    <h3>¿Que boletos transfieres?</h3>
-                    <div className={styles.selectRow}>Ticket #15921 · General</div>
-                    <div className={styles.selectRow}>Ticket #15786 · General</div>
-                    <div className={styles.stepActions}>
-                      <button className={styles.btnGhost} onClick={() => setTransferStep(1)}>Atras</button>
-                      <button className={styles.btnAccent} onClick={() => setTransferStep(3)}>Continuar</button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {transferStep === 3 ? (
-                  <div className={styles.stepCard}>
-                    <h3>Confirmar transferencia</h3>
-                    <p className={styles.muted}>Revisa los detalles y confirma el envio.</p>
-                    <div className={styles.stepActions}>
-                      <button className={styles.btnGhost} onClick={() => setTransferStep(2)}>Atras</button>
-                      <button className={styles.btnAccent}>Enviar transferencia</button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </section>
+              </section>
+            ))}
           </>
         ) : null}
 
@@ -627,10 +722,8 @@ export default function MisBoletosPage() {
                   </span>
                   <span>{row.fechaCompra ? formatDate(row.fechaCompra) : 'Sin fecha'}</span>
                   <span>{row.boletos}</span>
-                  <span>-{Math.round(row.total)}</span>
-                  <span className={`${styles.statusPill} ${row.estado === 'TT' ? styles.statusTransfer : styles.statusOk}`}>
-                    {row.estado === 'TT' ? 'Transferido' : 'Completado'}
-                  </span>
+                  <span>Q {Number(row.total || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
+                  <span className={historyStatusMeta(row.estado).className}>{historyStatusMeta(row.estado).label}</span>
                 </div>
               ))}
               {historyRows.length === 0 ? <div className={styles.historyEmpty}>Sin historial disponible.</div> : null}
@@ -770,26 +863,17 @@ export default function MisBoletosPage() {
             {!timelineLoading && !timelineError && timelineItems.length === 0 ? (
               <p className={styles.muted}>Sin movimientos registrados.</p>
             ) : null}
-            {!timelineLoading && timelineItems.length > 0 ? (
+            {!timelineLoading && timelineRows.length > 0 ? (
               <div className={styles.historyTimeline}>
-                {timelineItems.slice(0, 1).map((item, idx) => {
-                  const rawDate =
-                    (typeof item.fecha === 'string' && item.fecha) ||
-                    (typeof (item as any).fechaAccion === 'string' && (item as any).fechaAccion) ||
-                    (typeof (item as any).fechaRegistro === 'string' && (item as any).fechaRegistro) ||
-                    '';
-                  const text =
-                    (typeof item.descripcion === 'string' && item.descripcion) ||
-                    (typeof (item as any).accion === 'string' && (item as any).accion) ||
-                    (typeof item.detalle === 'string' && item.detalle) ||
-                    (typeof item.estado === 'string' && item.estado) ||
-                    'Actualización de ticket';
+                {timelineRows.map((row, idx) => {
+                  const { rawDate, text, estado } = row;
+                  const v = timelineVisualMeta(estado, text);
                   return (
-                    <div key={`${idx}-${rawDate}`} className={styles.historyTimelineRow}>
-                      <div className={styles.historyTimelineDate}>{rawDate ? formatDate(rawDate) : 'Sin fecha'}</div>
+                    <div key={`${idx}-${rawDate}-${text}`} className={styles.historyTimelineRow}>
+                      <div className={styles.historyTimelineDate}>{rawDate ? formatDateTime(rawDate) : 'Sin fecha'}</div>
                       <div className={styles.historyTimelineMarkerWrap}>
                         <div className={styles.historyTimelineLine} />
-                        <div className={styles.historyTimelineMarker}>🛒</div>
+                        <div className={`${styles.historyTimelineMarker} ${v.markerClass}`}>{v.glyph}</div>
                       </div>
                       <div className={styles.historyTimelineText}>{text}</div>
                     </div>
@@ -797,7 +881,7 @@ export default function MisBoletosPage() {
                 })}
               </div>
             ) : null}
-            {!timelineLoading && timelineItems.length === 0 && !timelineError ? (
+            {!timelineLoading && timelineRows.length === 0 && !timelineError ? (
               <div className={styles.historyTimeline}>
                 <div className={styles.historyTimelineRow}>
                   <div className={styles.historyTimelineDate}>Sin fecha</div>
@@ -807,38 +891,6 @@ export default function MisBoletosPage() {
                   </div>
                   <div className={styles.historyTimelineText}>Ticket generado y activo para uso.</div>
                 </div>
-              </div>
-            ) : null}
-            {!timelineLoading && timelineItems.length > 1 ? (
-              <div className={styles.historyTimelineMobileHint}>
-                {/* Keeps spacing parity with legacy modal footer area */}
-                <span />
-              </div>
-            ) : null}
-            {!timelineLoading && timelineItems.length > 1 ? (
-              <div className={styles.historyTimelineListCompact}>
-                {timelineItems.slice(1).map((item, idx) => {
-                  const rawDate =
-                    (typeof item.fecha === 'string' && item.fecha) ||
-                    (typeof (item as any).fechaAccion === 'string' && (item as any).fechaAccion) ||
-                    (typeof (item as any).fechaRegistro === 'string' && (item as any).fechaRegistro) ||
-                    '';
-                  const text =
-                    (typeof item.descripcion === 'string' && item.descripcion) ||
-                    (typeof (item as any).accion === 'string' && (item as any).accion) ||
-                    (typeof item.detalle === 'string' && item.detalle) ||
-                    (typeof item.estado === 'string' && item.estado) ||
-                    'Actualización de ticket';
-                  return (
-                    <div key={`extra-${idx}-${rawDate}`} className={styles.timelineItem}>
-                      <div className={styles.timelineDot} />
-                      <div>
-                        <div className={styles.timelineText}>{text}</div>
-                        <div className={styles.timelineDate}>{rawDate ? formatDate(rawDate) : 'Sin fecha'}</div>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             ) : null}
           </div>

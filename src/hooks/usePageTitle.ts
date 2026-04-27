@@ -35,6 +35,18 @@ export function usePageTitle() {
       document.title = `Checkout | ${BRAND}`;
       return;
     }
+    if (pathname.startsWith('/registrodeventa')) {
+      document.title = `Registro de compra | ${BRAND}`;
+      return;
+    }
+    if (pathname.startsWith('/qr/')) {
+      document.title = `Ticket | ${BRAND}`;
+      return;
+    }
+    if (pathname.startsWith('/cashless')) {
+      document.title = `Cashless | ${BRAND}`;
+      return;
+    }
     if (pathname === '/contactanos') {
       document.title = `Contacto | ${BRAND}`;
       return;
@@ -53,6 +65,18 @@ export function usePageTitle() {
     }
     if (pathname === '/simple') {
       document.title = `Primetix — Simple`;
+      return;
+    }
+    if (pathname.startsWith('/perfil')) {
+      document.title = `Perfil | ${BRAND}`;
+      return;
+    }
+    if (pathname.startsWith('/manual')) {
+      document.title = `Manual | ${BRAND}`;
+      return;
+    }
+    if (pathname.startsWith('/linkpago')) {
+      document.title = `Link de pago | ${BRAND}`;
       return;
     }
     document.title = BRAND;

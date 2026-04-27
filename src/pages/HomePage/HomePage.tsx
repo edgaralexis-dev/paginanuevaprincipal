@@ -488,11 +488,17 @@ export default function HomePage() {
                         <div className={styles.eventCardVenue}>{c.venue}</div>
                         <div className={styles.eventCardFooter}>
                           <div>
-                            <div className={styles.eventCardPriceFrom}>Desde</div>
-                            <div className={styles.eventCardPrice}>
-                              <span>Q</span>
-                              {c.price}
-                            </div>
+                            {Number(c.price) > 0 ? (
+                              <>
+                                <div className={styles.eventCardPriceFrom}>Desde</div>
+                                <div className={styles.eventCardPrice}>
+                                  <span>Q</span>
+                                  {c.price}
+                                </div>
+                              </>
+                            ) : (
+                              <div className={styles.eventCardPriceFrom}>Selecciona localidad</div>
+                            )}
                           </div>
                           <span className={styles.eventCardBuy} aria-hidden>
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">

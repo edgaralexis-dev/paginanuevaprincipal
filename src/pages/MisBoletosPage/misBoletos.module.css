@@ -623,6 +623,13 @@
   position: relative;
   z-index: 2;
 }
+.timelineMarkerDefault { background: #3554c2; }
+.timelineMarkerResale { background: #7914c9; }
+.timelineMarkerTransfer { background: #cf3a94; }
+.timelineMarkerPending { background: #f0b12d; }
+.timelineMarkerCancel { background: #ff4c13; }
+.timelineMarkerScanned { background: #1b1b1b; }
+.timelineMarkerSuccess { background: #8ba7e6; }
 .historyTimelineText {
   font-size: 42px;
   line-height: .95;
@@ -755,6 +762,15 @@
 }
 .statusTransfer {
   border: 1px solid rgba(87, 160, 255, 0.28); background: rgba(87, 160, 255, 0.14); color: #82b9ff;
+}
+.statusPending {
+  border: 1px solid rgba(255, 193, 59, 0.3); background: rgba(255, 193, 59, 0.12); color: #ffcf5d;
+}
+.statusCancel {
+  border: 1px solid rgba(255, 95, 95, 0.28); background: rgba(255, 95, 95, 0.12); color: #ff9d9d;
+}
+.statusScanned {
+  border: 1px solid rgba(166, 176, 193, 0.28); background: rgba(166, 176, 193, 0.14); color: #c9d1e0;
 }
 .historyEmpty {
   padding: 16px;
