@@ -666,42 +666,44 @@ export default function ReservaBridge() {
                     Tiempo restante: {formatSecondsMMSS(secondsLeft)} min
                   </div>
                   <div className={styles.selectedHeader}>Tickets seleccionados</div>
-                  {localityRows.map((row) => (
-                    <div
-                      key={`price-${row.name}`}
-                      className={`${styles.priceRow} ${selectedLocality === row.name ? styles.priceRowActive : ''}`}
-                      onClick={() => setSelectedLocality(row.name)}
-                    >
-                      <span>{row.name.replaceAll('_', ' ')}</span>
-                      <span>{row.available > 0 ? `${row.available} disp.` : 'Agotado'}</span>
-                      <strong>Q {row.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
-                      <div className={styles.qtyControls}>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) - 1, row.available);
-                          }}
-                          disabled={Number(selectedQtyByLocality[row.name] || 0) <= 0}
-                        >
-                          -
-                        </button>
-                        <span className={styles.qtyValue}>{Number(selectedQtyByLocality[row.name] || 0)}</span>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) + 1, row.available);
-                          }}
-                          disabled={row.available <= Number(selectedQtyByLocality[row.name] || 0)}
-                        >
-                          +
-                        </button>
+                  <div className={styles.priceRowsScroll}>
+                    {localityRows.map((row) => (
+                      <div
+                        key={`price-${row.name}`}
+                        className={`${styles.priceRow} ${selectedLocality === row.name ? styles.priceRowActive : ''}`}
+                        onClick={() => setSelectedLocality(row.name)}
+                      >
+                        <span>{row.name.replaceAll('_', ' ')}</span>
+                        <span>{row.available > 0 ? `${row.available} disp.` : 'Agotado'}</span>
+                        <strong>Q {row.price.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                        <div className={styles.qtyControls}>
+                          <button
+                            type="button"
+                            className={styles.qtyBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) - 1, row.available);
+                            }}
+                            disabled={Number(selectedQtyByLocality[row.name] || 0) <= 0}
+                          >
+                            -
+                          </button>
+                          <span className={styles.qtyValue}>{Number(selectedQtyByLocality[row.name] || 0)}</span>
+                          <button
+                            type="button"
+                            className={styles.qtyBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              changeQty(row.name, Number(selectedQtyByLocality[row.name] || 0) + 1, row.available);
+                            }}
+                            disabled={row.available <= Number(selectedQtyByLocality[row.name] || 0)}
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                   <div className={styles.checkoutFooter}>
                     <div className={styles.checkoutTotal}>
                       <span>Total</span>
