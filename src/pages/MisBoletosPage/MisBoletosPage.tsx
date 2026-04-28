@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Download, Facebook, LogOut, Search, Shield, User } from 'lucide-react';
+import { Bell, Download, Facebook, LogOut, Shield, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   cancelResale,
@@ -17,28 +17,6 @@ import type { TicketEventos, TicketTix } from '../../types/tickets';
 import { primetixWebHref } from '../../utils/reservaUrl';
 import logoSrc from '../../assets/LogoPrimetix.svg';
 import styles from './misBoletos.module.css';
-
-function IosShareGlyph() {
-  // Visual parity with Material `IosShareIcon` used in paginaprincipal.
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 15V4.5M12 4.5L8.5 8M12 4.5L15.5 8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M6 10.5V18.5C6 19.0523 6.44772 19.5 7 19.5H17C17.5523 19.5 18 19.0523 18 18.5V10.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function WhatsAppGlyph() {
   return (
@@ -369,7 +347,6 @@ export default function MisBoletosPage() {
   }, [timelineItems]);
 
   const renderTicketCard = (ev: TicketEventos, t: TicketTix, forcedEstado?: string) => {
-    const s = statusVisual(forcedEstado ?? t.estado);
     const rawState = (forcedEstado ?? t.estado ?? '').toLowerCase();
     const isInactive =
       rawState === 'ti' ||
@@ -379,22 +356,43 @@ export default function MisBoletosPage() {
       rawState === 'ta' ||
       rawState === 'activo' ||
       rawState.includes('ticket activo');
-    const canTransfer = isActive;
+    const hasQrVisible = isActive && !t.fisico;
+    const s = statusVisual(forcedEstado ?? t.estado);
+    const canTransfer = isActive && !t.fisico;
     const isTransferred = rawState === 'tt' || rawState.includes('transfer');
     const isResale = rawState === 'tr' || rawState.includes('reventa');
 
-    const openShareModal = () => {
-      setShareData({
-        eventCode: ev.codigoEvento,
-        ticketCode: t.codigo,
-        seatCode: t.codigoAsiento,
+    const openTicketTimeline = async () => {
+      if (!user?.codigo || !user?.tokenPrivado) return;
+      setTimelineOpen(true);
+      setTimelineLoading(true);
+      setTimelineError(null);
+      setTimelineTicket(t.codigo);
+      setTimelineEventInfo({
         eventName: ev.evento,
         artist: ev.artista,
-        eventDate: ev.fechaEvento,
         image: ev.imagenEvento,
         locality: t.localidad,
+        seat: t.asiento,
       });
-      setShareOpen(true);
+      try {
+        const resp = await getTicketTimeline(user.codigo, t.codigo, user.tokenPrivado);
+        if ('response' in resp) {
+          if (resp.response === 'SinJWT') {
+            logout();
+            return;
+          }
+          setTimelineItems([]);
+          setTimelineError(`No se pudo cargar historial (${resp.response}).`);
+          return;
+        }
+        setTimelineItems(resp);
+      } catch {
+        setTimelineError('No se pudo cargar el historial del ticket.');
+        setTimelineItems([]);
+      } finally {
+        setTimelineLoading(false);
+      }
     };
 
     return (
@@ -402,57 +400,8 @@ export default function MisBoletosPage() {
         <div className={styles.ticketTop}>
           {ev.imagenEvento ? <img className={styles.ticketTopImg} src={ev.imagenEvento} alt="" /> : <div className={styles.ticketTopImg} />}
           <div className={styles.ticketTopOverlay} />
-          <div className={styles.ticketCode}>Ticket-{t.codigo}</div>
-          <div className={styles.ticketTopActions}>
-            <button
-              type="button"
-              className={styles.topIconBtn}
-              title="Historial del ticket"
-              onClick={async () => {
-                if (!user?.codigo || !user?.tokenPrivado) return;
-                setTimelineOpen(true);
-                setTimelineLoading(true);
-                setTimelineError(null);
-                setTimelineTicket(t.codigo);
-                setTimelineEventInfo({
-                  eventName: ev.evento,
-                  artist: ev.artista,
-                  image: ev.imagenEvento,
-                  locality: t.localidad,
-                  seat: t.asiento,
-                });
-                try {
-                  const resp = await getTicketTimeline(user.codigo, t.codigo, user.tokenPrivado);
-                  if ('response' in resp) {
-                    if (resp.response === 'SinJWT') {
-                      logout();
-                      return;
-                    }
-                    setTimelineItems([]);
-                    setTimelineError(`No se pudo cargar historial (${resp.response}).`);
-                    return;
-                  }
-                  setTimelineItems(resp);
-                } catch {
-                  setTimelineError('No se pudo cargar el historial del ticket.');
-                  setTimelineItems([]);
-                } finally {
-                  setTimelineLoading(false);
-                }
-              }}
-            >
-              <Search size={16} />
-            </button>
-            <button
-              type="button"
-              className={styles.topIconBtn}
-              title="Compartir ticket"
-              onClick={openShareModal}
-            >
-              <IosShareGlyph />
-            </button>
-          </div>
         </div>
+        <div className={styles.ticketCodeRow}>Ticket-{t.codigo}</div>
 
         <div className={styles.ticketStatePill}>{s.pill}</div>
 
@@ -464,7 +413,7 @@ export default function MisBoletosPage() {
 
         <div className={styles.ticketBottom}>
           <span className={styles.ticketBottomDot}>●</span>
-          <span>{s.pill === 'ACTIVE' ? 'Codigo QR Disponible' : 'Codigo QR No Disponible'}</span>
+          <span>{hasQrVisible ? 'Codigo QR Disponible' : 'Codigo QR No Disponible'}</span>
         </div>
 
         <div className={styles.ticketMetaFooter}>
@@ -472,26 +421,8 @@ export default function MisBoletosPage() {
           <div className={styles.ticketPrice}>{t.precio != null ? `Q ${Number(t.precio).toLocaleString('es-GT')}` : '—'}</div>
         </div>
 
-        {isActive ? (
-          <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.qrOpen}>
-            Abrir ticket
-          </Link>
-        ) : (
-          <div className={styles.qrOpen} aria-disabled>
-            QR no disponible
-          </div>
-        )}
-
         <div className={styles.ticketActions}>
-          <button
-            type="button"
-            className={styles.utilBtn}
-            onClick={openShareModal}
-            title="Copiar enlace"
-          >
-            Compartir
-          </button>
-          <button type="button" className={styles.utilBtn} title="Historial">
+          <button type="button" className={styles.utilBtn} title="Historial" onClick={openTicketTimeline}>
             Historial
           </button>
         </div>
@@ -553,13 +484,13 @@ export default function MisBoletosPage() {
               {busyTicket === t.codigo ? 'Cancelando...' : 'Cancelar'}
             </button>
           ) : null}
-          {isActive ? (
+          {hasQrVisible ? (
             <Link to={`/ticketqr/${ev.codigoEvento}/${t.codigo}/${t.codigoAsiento}`} className={styles.actionBtnPrimary}>
               Ver ticket
             </Link>
           ) : (
             <button type="button" className={styles.actionBtnPrimary} disabled>
-              Ticket inactivo
+              QR no disponible
             </button>
           )}
         </div>
@@ -754,13 +685,12 @@ export default function MisBoletosPage() {
                 {settingsSection === 'info' ? (
                   <div className={styles.settingsCard}>
                     <h3 className={styles.settingsTitle}><User size={16} /> Informacion Personal</h3>
-                    <p className={styles.settingsMuted}>Actualiza tu nombre, correo y numero de contacto.</p>
+                    <p className={styles.settingsMuted}>Consulta tus datos registrados de la cuenta.</p>
                     <div className={styles.avatarRow}>
                       <div className={styles.avatarLarge}>{initials.toUpperCase()}</div>
                       <div>
                         <div className={styles.avatarName}>{user?.nombre || 'Usuario'}</div>
                         <div className={styles.avatarMail}>{user?.correoElectronico || '—'}</div>
-                        <button className={styles.smallGhostBtn}>Cambiar foto</button>
                       </div>
                     </div>
                     <div className={styles.formRow}>
@@ -781,10 +711,6 @@ export default function MisBoletosPage() {
                       <span>Numero de telefono</span>
                       <input className={styles.input} value={user?.numeroCelular || ''} readOnly />
                     </label>
-                    <div className={styles.stepActions}>
-                      <button className={styles.btnAccent}>Guardar cambios</button>
-                      <button className={styles.btnGhost}>Cancelar</button>
-                    </div>
                   </div>
                 ) : null}
 
