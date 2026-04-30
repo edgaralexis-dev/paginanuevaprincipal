@@ -104,6 +104,37 @@ export async function apiPut(path: string, init?: RequestInit): Promise<void> {
   });
 }
 
+export async function apiPutJsonAnyStatus<T>(
+  path: string,
+  body: unknown,
+  init?: RequestInit,
+): Promise<{ ok: boolean; status: number; data: T }> {
+  const base = getBaseUrl();
+  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  let data = {} as T;
+  if (text) {
+    try {
+      data = JSON.parse(text) as T;
+    } catch {
+      data = {} as T;
+    }
+  }
+  return { ok: res.ok, status: res.status, data };
+}
+
 /** POST donde 400/401 pueden traer cuerpo JSON útil (login). */
 export async function apiPostJsonAnyStatus<T>(path: string, body: unknown, init?: RequestInit): Promise<{
   ok: boolean;
