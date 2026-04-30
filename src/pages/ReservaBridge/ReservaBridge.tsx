@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CircleHelp } from 'lucide-react';
 import logoSrc from '../../assets/LogoPrimetix.svg';
 import { ReactSvgPanZoomLoader, SvgLoaderSelectElement } from 'react-svg-pan-zoom-loader';
-import { UncontrolledReactSVGPanZoom } from 'react-svg-pan-zoom';
 import {
   getCompraRapidaImageUrl,
   getEventDataById,
@@ -12,13 +11,25 @@ import {
   isCompraRapidaFlujoEvento,
   isSvgUrl,
 } from '../../services/events';
-import { getSeatPieMap, getSeatsMap, type SeatMap, type SeatMapPie } from '../../services/seats';
+import {
+  getSeatPieMap,
+  getSeatsMap,
+  quitarReservasPorUuid,
+  reservarAsiento,
+  type SeatMap,
+  type SeatMapPie,
+} from '../../services/seats';
 import styles from './reserva.module.css';
 
 const MAX_TICKETS_PER_PERSON = 6;
 
+function getInitialStaticSvgScale(isXs: boolean): number {
+  return isXs ? 0.78 : 0.62;
+}
+
 export default function ReservaBridge() {
   const { eventName, eventArtist, eventId } = useParams();
+  const navigate = useNavigate();
   const [seats, setSeats] = useState<SeatMap[]>([]);
   const [pieSeats, setPieSeats] = useState<SeatMapPie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,13 +45,10 @@ export default function ReservaBridge() {
   const [localityFilterTab, setLocalityFilterTab] = useState<string>('ALL');
   const [mainStageView, setMainStageView] = useState<'mapa' | 'lista'>('mapa');
   const [compraRapidaFlujo, setCompraRapidaFlujo] = useState(false);
-  const [width, setWidth] = useState(1);
-  const [height, setHeight] = useState(1);
   const [isSvgLoaded, setIsSvgLoaded] = useState(false);
   const [svgPanZoomEnabled, setSvgPanZoomEnabled] = useState(true);
   const [isXs, setIsXs] = useState(false);
-  const [pointX, setPointX] = useState(300);
-  const [pointY, setPointY] = useState(300);
+  const [staticSvgScale, setStaticSvgScale] = useState(getInitialStaticSvgScale(false));
   const [seatTooltip, setSeatTooltip] = useState<{
     x: number;
     y: number;
@@ -53,17 +61,30 @@ export default function ReservaBridge() {
   const [selectedLocality, setSelectedLocality] = useState<string>('');
   const [selectedQtyByLocality, setSelectedQtyByLocality] = useState<Record<string, number>>({});
   const [secondsLeft, setSecondsLeft] = useState(10 * 60);
-  const Viewer = useRef<UncontrolledReactSVGPanZoom | null>(null);
+  const [reserving, setReserving] = useState(false);
+  /** Contenedor interactivo (cursor, tooltips). */
   const refDiv = useRef<HTMLDivElement | null>(null);
+  const refMapMeasure = useRef<HTMLDivElement | null>(null);
+  const refMapVisualShell = useRef<HTMLDivElement | null>(null);
   const zoneTabsRef = useRef<HTMLDivElement | null>(null);
+  const uuidRef = useRef<string>('');
 
   const nombre = safeDecode(eventName) || 'Evento';
   const artista = safeDecode(eventArtist) || '—';
   const codigo = safeDecode(eventId) || '—';
   const eventIdNumber = Number(codigo);
+  if (!uuidRef.current) {
+    const existing = localStorage.getItem('uuid') || '';
+    if (existing) uuidRef.current = existing;
+    else {
+      const generated = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString();
+      localStorage.setItem('uuid', generated);
+      uuidRef.current = generated;
+    }
+  }
   const mapInteractiveSrc = useMemo(() => {
     const a = (eventInteractiveSvgSrc || '').trim();
-    if (a) return a;
+    if (isSvgUrl(a)) return a;
     const m = (eventMapImage || '').trim();
     if (isSvgUrl(m)) return m;
     return '';
@@ -113,8 +134,8 @@ export default function ReservaBridge() {
           const detailMap = (eventDetail.mapaUrl || '').trim();
           const svgSrc = getInteractiveSvgSourceForBooking(eventDetail) || '';
           const detailSpotify = (eventDetail.spotify || '').trim();
-          if (compraRapida) setEventMapImage(compraRapida);
-          else if (detailMap) setEventMapImage(detailMap);
+          // No sobreescribe un mapa ya cargado desde EventData; evita saltos/recortes al volver de Home.
+          setEventMapImage((prev) => prev || detailMap || compraRapida || '');
           setEventInteractiveSvgSrc(svgSrc);
           if (detailSpotify) setSpotifyUrl(detailSpotify);
           setEventTipo(eventDetail.tipoEvento || '');
@@ -141,9 +162,23 @@ export default function ReservaBridge() {
   }, []);
 
   useEffect(() => {
+    if (!Number.isFinite(eventIdNumber) || eventIdNumber <= 0) return;
+    if (secondsLeft > 0) return;
+    void quitarReservasPorUuid(uuidRef.current, eventIdNumber);
+  }, [secondsLeft, eventIdNumber]);
+
+  useEffect(() => {
+    if (!Number.isFinite(eventIdNumber) || eventIdNumber <= 0) return;
+    return () => {
+      void quitarReservasPorUuid(uuidRef.current, eventIdNumber);
+    };
+  }, [eventIdNumber]);
+
+  useEffect(() => {
     setIsSvgLoaded(false);
     setSvgPanZoomEnabled(true);
-  }, [mapInteractiveSrc]);
+    setStaticSvgScale(getInitialStaticSvgScale(isXs));
+  }, [mapInteractiveSrc, isXs]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 599px)');
@@ -153,62 +188,40 @@ export default function ReservaBridge() {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  const fitViewerIfReady = useCallback(() => {
-    const v = Viewer.current;
-    if (!v || width <= 0 || height <= 0) return;
-    const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
-    const viewBox = svgEl?.getAttribute('viewBox');
-    if (!viewBox || viewBox.trim().length === 0) return;
-    v.fitToViewer();
-  }, [width, height]);
-
   useEffect(() => {
-    if (!isSvgLoaded) return;
-    const id = window.setTimeout(fitViewerIfReady, 50);
-    return () => window.clearTimeout(id);
-  }, [isSvgLoaded, isXs, width, height, fitViewerIfReady]);
-
-  useEffect(() => {
-    const handleResize = () => fitViewerIfReady();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [fitViewerIfReady]);
-
-  useLayoutEffect(() => {
-    if (!mapInteractiveSrc || !svgPanZoomEnabled) return () => {};
-    const el = refDiv.current;
-    if (!el) return () => {};
-    const ro = new ResizeObserver(() => {
-      const currentHeight = el.clientHeight || 0;
-      setWidth(!isXs ? el.clientWidth || 0 : el.clientWidth || 300);
-      if (currentHeight < 500) {
-        setHeight(600);
-      } else {
-        setHeight(currentHeight);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [isXs, mapInteractiveSrc, svgPanZoomEnabled, isSvgLoaded]);
-
-  useEffect(() => {
-    setPointX(width > 0 ? width / 2 : 300);
-    setPointY(height > 0 ? height / 2 : 300);
-  }, [width, height]);
+    if (canUsePanZoom || mainStageView !== 'mapa' || !rasterMapSrc) return;
+    const triggerResize = () => window.dispatchEvent(new Event('resize'));
+    triggerResize();
+    const t1 = window.setTimeout(triggerResize, 80);
+    const t2 = window.setTimeout(triggerResize, 220);
+    const t3 = window.setTimeout(triggerResize, 520);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [canUsePanZoom, mainStageView, rasterMapSrc, isXs]);
 
   const handleSvgReady = () => {
-    setIsSvgLoaded(true);
     const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
-    const viewBox = svgEl?.getAttribute('viewBox')?.trim();
-    if (!viewBox) {
+    const rawViewBox = svgEl?.getAttribute('viewBox')?.trim();
+    const widthAttr = svgEl?.getAttribute('width')?.trim() || '';
+    const heightAttr = svgEl?.getAttribute('height')?.trim() || '';
+    const parsedW = Number(widthAttr.replace(/[^\d.]/g, ''));
+    const parsedH = Number(heightAttr.replace(/[^\d.]/g, ''));
+    const fallbackViewBox =
+      Number.isFinite(parsedW) && Number.isFinite(parsedH) && parsedW > 0 && parsedH > 0
+        ? `0 0 ${parsedW} ${parsedH}`
+        : '';
+    const effectiveViewBox = rawViewBox || fallbackViewBox;
+    if (!effectiveViewBox) {
       setSvgPanZoomEnabled(false);
+      setIsSvgLoaded(false);
       return;
     }
     setSvgPanZoomEnabled(true);
+    setIsSvgLoaded(true);
   };
-
-  const viewerWidth = Number.isFinite(width) && width > 0 ? Math.max(width, 320) : 320;
-  const viewerHeight = Number.isFinite(height) && height > 0 ? Math.max(height, 320) : 320;
 
   const localityRows = useMemo(() => {
     const rows = new Map<string, { name: string; price: number; available: number; color?: string }>();
@@ -472,22 +485,15 @@ export default function ReservaBridge() {
   );
 
   const handleHome = () => {
-    const v = Viewer.current;
-    if (!v) return;
-    const svgEl = document.getElementById('tooltip-id') as SVGSVGElement | null;
-    const viewBox = svgEl?.getAttribute('viewBox');
-    if (!viewBox || viewBox.trim().length === 0) return;
-    v.fitToViewer();
+    setStaticSvgScale(getInitialStaticSvgScale(isXs));
   };
 
   const handleZoomIn = () => {
-    if (!Viewer.current || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return;
-    Viewer.current.zoom(pointX, pointY, 1.1);
+    setStaticSvgScale((s) => Math.min(2.4, s * 1.1));
   };
 
   const handleZoomOut = () => {
-    if (!Viewer.current || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return;
-    Viewer.current.zoom(pointX, pointY, 0.9);
+    setStaticSvgScale((s) => Math.max(0.2, s * 0.85));
   };
 
   const resaltarSoloLocalidadMesaSilla =
@@ -601,10 +607,10 @@ export default function ReservaBridge() {
   }, [canUsePanZoom, isSvgLoaded, localityRows, seats, selectedLocality]);
 
   const onSvgMapClickCapture = (event: MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-    const withId = target.closest('[id]') as HTMLElement | null;
-    const id = withId?.id || target.id || '';
+    const interactiveId = getClosestInteractiveElementId(event.target, pieSeats);
+    if (!interactiveId) return;
+    let id = getClosestElementId(event.target);
+    if (!id) id = interactiveId;
     const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
     const seatCode = resolveMapElementToSeatCode(svgRoot, id);
     if (seatCode == null) return;
@@ -619,24 +625,25 @@ export default function ReservaBridge() {
     setSelectedLocality(loc);
     setActiveSeatCode(seatCode);
     changeQty(loc, Number(selectedQtyByLocality[loc] || 0) + 1, max);
-    setSeatTooltip(buildTooltipData(event, seat));
+    setSeatTooltip(buildTooltipData(event, seat, seatCode, withId || target));
   };
 
   const onMapMouseMove = (event: MouseEvent<HTMLDivElement>) => {
-    const el = refDiv.current;
-    if (el) {
-      const r = el.getBoundingClientRect();
-      setPointX(event.clientX - r.left);
-      setPointY(event.clientY - r.top);
-    }
     onSvgMapMove(event);
   };
 
   const onSvgMapMove = (event: MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-    const withId = target.closest('[id]') as HTMLElement | null;
-    const rawId = withId?.id || target.id || '';
+    const target = event.target as Element | null;
+    const withId = target?.closest('[id]') || null;
+    const interactiveId = getClosestInteractiveElementId(event.target, pieSeats);
+    if (!interactiveId) {
+      const host = refDiv.current;
+      if (host) host.style.cursor = '';
+      setSeatTooltip(null);
+      return;
+    }
+    let rawId = getClosestElementId(event.target);
+    if (!rawId) rawId = interactiveId;
     const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
     const seatCode = resolveMapElementToSeatCode(svgRoot, rawId);
     const host = refDiv.current;
@@ -653,7 +660,7 @@ export default function ReservaBridge() {
     }
     const blocked = ['AR', 'VR', 'TI'].includes((seat.estadoAsiento || '').toUpperCase());
     if (host) host.style.cursor = blocked ? 'not-allowed' : 'pointer';
-    setSeatTooltip(buildTooltipData(event, seat));
+    setSeatTooltip(buildTooltipData(event, seat, seatCode, withId || target));
   };
 
   const onSvgMapLeave = () => {
@@ -661,7 +668,17 @@ export default function ReservaBridge() {
     setSeatTooltip(null);
   };
 
-  const buildTooltipData = (event: MouseEvent<HTMLDivElement>, seat: SeatMap) => {
+  const handleRasterMapLoad = () => {
+    window.dispatchEvent(new Event('resize'));
+    window.setTimeout(() => window.dispatchEvent(new Event('resize')), 120);
+  };
+
+  const buildTooltipData = (
+    event: MouseEvent<HTMLDivElement>,
+    seat: SeatMap,
+    seatCode?: number | null,
+    hoveredEl?: Element | null,
+  ) => {
     const viewport = refDiv.current;
     const rect = viewport?.getBoundingClientRect();
     const rawX = rect ? event.clientX - rect.left + 12 : 12;
@@ -671,11 +688,21 @@ export default function ReservaBridge() {
     const x = Math.max(12, Math.min(rawX, maxX));
     const y = Math.max(12, Math.min(rawY, maxY));
     const status = estadoAsientoLabel(seat.estadoAsiento);
+    let seatName = seat.nombre || `Asiento ${seat.codigo}`;
+    try {
+      const svgRoot = document.getElementById('tooltip-id') as SVGSVGElement | null;
+      const seatMeta = resolveSeatDisplayMeta(svgRoot, seatCode ?? Number(seat.codigo), hoveredEl);
+      const seatNameFromMap =
+        seatMeta.label || (seatMeta.mesa && seatMeta.silla ? `Mesa ${seatMeta.mesa} - Silla ${seatMeta.silla}` : '');
+      if (seatNameFromMap) seatName = seatNameFromMap;
+    } catch {
+      // fallback a API si la lectura de metadata SVG falla por cualquier nodo/entorno.
+    }
     return {
       x,
       y,
       title: (seat.nombreLocalidad || seat.nombreSector || 'Localidad').replaceAll('_', ' '),
-      seatName: seat.nombre || `Asiento ${seat.codigo}`,
+      seatName,
       price: Number(seat.precio || 0) + Number(seat.fee || 0),
       status,
     };
@@ -723,6 +750,52 @@ export default function ReservaBridge() {
       </div>
     );
   };
+
+  const reserveAndCheckout = useCallback(async () => {
+    if (reserving || totalTickets <= 0 || secondsLeft <= 0) return;
+    if (!Number.isFinite(eventIdNumber) || eventIdNumber <= 0) return;
+    const nowIso = new Date().toISOString();
+    const selectedSeatCodes = localityRows
+      .flatMap((row) => {
+        const qty = Number(selectedQtyByLocality[row.name] || 0);
+        if (qty <= 0) return [];
+        const available = seats
+          .filter((s) => (s.nombreLocalidad || s.nombreSector || '').trim() === row.name)
+          .filter((s) => !['AR', 'VR', 'TI'].includes((s.estadoAsiento || '').toUpperCase()))
+          .sort((a, b) => Number(a.codigo || 0) - Number(b.codigo || 0))
+          .slice(0, qty);
+        return available.map((s) => Number(s.codigo || 0)).filter((x) => x > 0);
+      })
+      .filter((x) => Number.isFinite(x) && x > 0);
+
+    if (selectedSeatCodes.length === 0) {
+      navigate(checkoutHref);
+      return;
+    }
+
+    setReserving(true);
+    setError(null);
+    try {
+      for (const codigoAsiento of selectedSeatCodes) {
+        const body = {
+          codigoAsiento,
+          uuid: uuidRef.current,
+          cantidad: 1,
+          esPie: false,
+          codigoTicket: 0,
+          fechaReserva: nowIso,
+          socketId: uuidRef.current,
+        };
+        const r = await reservarAsiento(true, body);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      }
+      navigate(checkoutHref);
+    } catch {
+      setError('No se pudieron reservar todos los asientos. Intenta nuevamente.');
+    } finally {
+      setReserving(false);
+    }
+  }, [reserving, totalTickets, secondsLeft, eventIdNumber, localityRows, selectedQtyByLocality, seats, navigate, checkoutHref]);
 
   return (
     <div className={styles.page}>
@@ -862,6 +935,7 @@ export default function ReservaBridge() {
                   ) : null}
 
                   <div
+                    ref={refMapVisualShell}
                     className={`${styles.mapVisualShell} ${isMapaPie ? styles.mapAspectMapaPie : styles.mapAspectBooking}`}
                   >
                     <div className={styles.mapStageToolbar}>
@@ -886,46 +960,71 @@ export default function ReservaBridge() {
                     {mainStageView === 'lista' ? (
                       <div className={styles.listaStage}>{filteredLocalityRows.map((row) => renderZoneCard(row))}</div>
                     ) : canUsePanZoom ? (
-                      <ReactSvgPanZoomLoader
-                        className={styles.mapLoaderFill}
-                        key={mapInteractiveSrc}
-                        src={mapInteractiveSrc}
-                        proxy={
-                          <>
-                            <SvgLoaderSelectElement selector="svg" id="tooltip-id" onSVGReady={handleSvgReady} />
-                          </>
-                        }
-                        render={(content) => (
-                          <div
-                            ref={refDiv}
-                            onMouseMove={onMapMouseMove}
-                            onMouseLeave={onSvgMapLeave}
-                            onClickCapture={onSvgMapClickCapture}
-                            className={styles.mapPanZoomHost}
-                          >
-                            <UncontrolledReactSVGPanZoom
-                              ref={Viewer}
-                              width={viewerWidth}
-                              height={viewerHeight}
-                              background="white"
-                              tool="auto"
-                              detectPinchGesture
-                              detectAutoPan={false}
-                              scaleFactorMin={isXs ? 0.1 : 0.5}
-                              scaleFactorMax={isXs ? 20 : 10}
-                              toolbarProps={{ position: 'none' }}
-                              miniatureProps={{ position: 'none' }}
+                      <div ref={refMapMeasure} className={styles.mapLoaderFill}>
+                        <ReactSvgPanZoomLoader
+                          className={styles.mapLoaderFill}
+                          key={mapInteractiveSrc}
+                          src={mapInteractiveSrc}
+                          proxy={
+                            <>
+                              <SvgLoaderSelectElement selector="svg" id="tooltip-id" onSVGReady={handleSvgReady} />
+                            </>
+                          }
+                          render={(content) => (
+                            <div
+                              ref={refDiv}
+                              onMouseMove={onMapMouseMove}
+                              onMouseLeave={onSvgMapLeave}
+                              onClickCapture={onSvgMapClickCapture}
+                              className={styles.mapPanZoomHost}
+                              style={{
+                                flex: 1,
+                                minHeight: 0,
+                                width: '100%',
+                                background: 'white',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                flexDirection: 'column',
+                              }}
                             >
-                              <svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                                {content}
-                              </svg>
-                            </UncontrolledReactSVGPanZoom>
-                          </div>
-                        )}
-                      />
+                              <div
+                                key={`${mapInteractiveSrc}|${isXs ? 'xs' : 'lg'}|${mainStageView}`}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    transform: `scale(${staticSvgScale})`,
+                                    transformOrigin: 'center center',
+                                    transition: 'transform 120ms ease-out',
+                                    width: '100%',
+                                    height: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  {content}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        />
+                      </div>
                     ) : rasterMapSrc ? (
                       <div className={styles.mapStaticInner}>
-                        <img src={rasterMapSrc} alt={`Mapa visual de ${nombre}`} />
+                        <img
+                          key={`${rasterMapSrc}|${isXs ? 'xs' : 'lg'}`}
+                          src={rasterMapSrc}
+                          alt={`Mapa visual de ${nombre}`}
+                          onLoad={handleRasterMapLoad}
+                        />
                       </div>
                     ) : (
                       <div className={styles.mapStaticInner}>
@@ -1145,16 +1244,16 @@ export default function ReservaBridge() {
                       <span className={styles.expiryTime}>{formatSecondsMMSS(secondsLeft)}</span>
                     </div>
                     <div className={styles.checkoutActions}>
-                      <Link
-                        to={checkoutHref}
+                      <button
+                        type="button"
                         className={styles.payBtn}
-                        aria-disabled={totalTickets <= 0 || secondsLeft <= 0}
-                        onClick={(e) => {
-                          if (totalTickets <= 0 || secondsLeft <= 0) e.preventDefault();
+                        disabled={totalTickets <= 0 || secondsLeft <= 0 || reserving}
+                        onClick={() => {
+                          void reserveAndCheckout();
                         }}
                       >
-                        Ir a pagar
-                      </Link>
+                        {reserving ? 'Reservando...' : 'Ir a pagar'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1183,6 +1282,35 @@ function findSeatSvgElementByCode(svg: SVGSVGElement, code: number): SVGGraphics
     }
   }
   return null;
+}
+
+function resolveSeatDisplayMeta(
+  svg: SVGSVGElement | null,
+  seatCode: number | undefined,
+  hoveredEl?: Element | null,
+): { mesa: string; silla: string; label: string } {
+  const read = (el: Element | null | undefined) => {
+    if (!el) return { mesa: '', silla: '', label: '' };
+    const mesa = (el.getAttribute('data-primetix-mesa') || '').trim();
+    const silla = (el.getAttribute('data-primetix-silla') || '').trim();
+    const label = (el.getAttribute('data-primetix-seat-label') || '').trim();
+    return { mesa, silla, label };
+  };
+
+  // 1) Prioriza nodo hover real (o su ancestro con data-primetix-*).
+  const fromHover =
+    (hoveredEl && 'closest' in hoveredEl
+      ? hoveredEl.closest('[data-primetix-mesa][data-primetix-silla], [data-primetix-seat-label]')
+      : null) || null;
+  const hoverMeta = read(fromHover);
+  if ((hoverMeta.mesa && hoverMeta.silla) || hoverMeta.label) return hoverMeta;
+
+  // 2) Fallback: nodo de asiento resuelto por código/id.
+  if (!svg || !Number.isFinite(seatCode)) return { mesa: '', silla: '', label: '' };
+  const seatEl = findSeatSvgElementByCode(svg, Number(seatCode));
+  const codeMeta = read(seatEl);
+  if ((codeMeta.mesa && codeMeta.silla) || codeMeta.label) return codeMeta;
+  return { mesa: '', silla: '', label: '' };
 }
 
 function hexToCssMarker(hex?: string): string {
@@ -1231,16 +1359,41 @@ function safeDecode(v: string | undefined): string {
   }
 }
 
-/** Igual que `seatCodeFromElementId` en Booking: solo patrones de asiento (sin mezclar `m12`→12). */
-function seatCodeFromStrictElementId(id: string): number | null {
-  if (!id) return null;
-  const clean = id.trim();
+/** Mismo parser del Booking legacy para ids de asiento en SVG. */
+function seatCodeFromElementId(rawId: string | null | undefined): number | null {
+  const clean = (rawId || '').trim();
+  if (!clean) return null;
   const patterns = [/^a_?(\d+)$/i, /^c_?(\d+)$/i, /^svg_?(\d+)$/i, /^(\d+)$/];
   for (const p of patterns) {
     const m = clean.match(p);
     if (m) return Number(m[1]);
   }
   return null;
+}
+
+function isSeatElementId(rawId: string | null | undefined): boolean {
+  return seatCodeFromElementId(rawId) != null;
+}
+
+function getClosestElementId(target: EventTarget | null): string {
+  if (!(target instanceof Element)) return '';
+  if (target.id) return target.id;
+  const closest = target.closest('[id]');
+  return (closest as Element | null)?.id || '';
+}
+
+function getClosestInteractiveElementId(target: EventTarget | null, seatsPie: SeatMapPie[] | null | undefined): string {
+  if (!(target instanceof Element)) return '';
+  const isPieId = (id: string) =>
+    Array.isArray(seatsPie) && seatsPie.some((s) => s?.nombreLocalidad === id || s?.nombreSector === id);
+  let current: Element | null = target;
+  while (current) {
+    const id = current.getAttribute('id') || '';
+    // Igual que Booking: solo ids de asiento o de pie (no m*/g* para evitar tomar "primer asiento del grupo").
+    if (id && (isSeatElementId(id) || isPieId(id))) return id;
+    current = current.parentElement;
+  }
+  return '';
 }
 
 /**
@@ -1251,17 +1404,17 @@ function resolveMapElementToSeatCode(svg: SVGSVGElement | null, elementId: strin
   const id = elementId.trim();
   if (!id) return null;
 
-  const direct = seatCodeFromStrictElementId(id);
+  const direct = seatCodeFromElementId(id);
   if (direct != null) return direct;
 
   if (!svg) return null;
 
   const mesaNum = id.match(/^m(\d+)$/i)?.[1];
   if (mesaNum) {
-    const grupo = svg.querySelector(`#g${mesaNum}`);
+    const grupo = svg.getElementById(`g${mesaNum}`);
     if (grupo) {
       for (const el of grupo.querySelectorAll('[id]')) {
-        const c = seatCodeFromStrictElementId(el.id);
+        const c = seatCodeFromElementId(el.id);
         if (c != null) return c;
       }
     }
@@ -1270,10 +1423,10 @@ function resolveMapElementToSeatCode(svg: SVGSVGElement | null, elementId: strin
 
   const grupoNum = id.match(/^g(\d+)$/i)?.[1];
   if (grupoNum) {
-    const grupo = svg.querySelector(`#g${grupoNum}`);
+    const grupo = svg.getElementById(`g${grupoNum}`);
     if (grupo) {
       for (const el of grupo.querySelectorAll('[id]')) {
-        const c = seatCodeFromStrictElementId(el.id);
+        const c = seatCodeFromElementId(el.id);
         if (c != null) return c;
       }
     }
